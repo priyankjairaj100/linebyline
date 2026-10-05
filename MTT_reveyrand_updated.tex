@@ -2623,13 +2623,51 @@ from the evaluated traffic-load inputs:
 \label{fig:bridge_response_metrics}
 \end{figure*}
 
+
+\begin{table*}[!t]
+\centering
+\caption{Bridge-response performance obtained from the evaluated traffic-load inputs.}
+\label{tab:bridge_response_performance}
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{Traffic input}
+& \begin{tabular}[c]{@{}c@{}}$L_b/4$ \textbf{RMSE}\\ \textbf{(mm)}\end{tabular}
+& \begin{tabular}[c]{@{}c@{}}$L_b/2$ \textbf{RMSE}\\ \textbf{(mm)}\end{tabular}
+& \begin{tabular}[c]{@{}c@{}}$3L_b/4$ \textbf{RMSE}\\ \textbf{(mm)}\end{tabular}
+& \begin{tabular}[c]{@{}c@{}}\textbf{Acc. RMSE}\\ \textbf{(m/s$^2$)}\end{tabular}
+& \begin{tabular}[c]{@{}c@{}}\textbf{Peak MAE}\\ \textbf{(mm)}\end{tabular}
+& \begin{tabular}[c]{@{}c@{}}\textbf{Disp.}\\ $\mathbf{R^2}$\end{tabular}
+& \begin{tabular}[c]{@{}c@{}}\textbf{Acc.}\\ $\mathbf{R^2}$\end{tabular}
+\\
+\midrule
+Persistence
+& \textbf{3.190} & 4.392 & 3.416 & 0.0281 & 4.416 & 0.571 & 0.364 \\
+Physics-Based
+& 3.894 & \textbf{3.427} & \textbf{1.856} & \textbf{0.0269} & \textbf{2.525} & \textbf{0.765} & \textbf{0.412} \\
+ConvLSTM
+& 5.391 & 7.236 & 5.238 & 0.1006 & 6.423 & -0.825 & -15.517 \\
+Transformer
+& 4.061 & 5.160 & 3.790 & 0.0792 & 3.517 & 0.523 & -1.838 \\
+Direct Prediction
+& 4.011 & 5.136 & 3.675 & 0.0869 & 4.002 & 0.517 & -2.545 \\
+Support-Consistent Residual
+& 4.062 & 3.727 & 2.101 & 0.0321 & 2.530 & 0.730 & 0.350 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
 \subsection{Bridge Dynamic Response under Estimated Traffic Loads}
 \label{sec:bridge_response_results}
 
 The estimated
 traffic-load fields are next evaluated through the common VBI model using
 identical structural parameters, numerical settings, and observed-history
-initialization. Fig.~\ref{fig:bridge_response_metrics} summarizes the resulting displacement and acceleration errors. The Physics-Based method provides the strongest overall bridge-response
+initialization. Table~\ref{tab:bridge_response_performance} summarizes the quantitative displacement and acceleration errors, while Fig.~\ref{fig:bridge_response_metrics} provides the corresponding multi-metric comparison. The Physics-Based method provides the strongest overall bridge-response
 agreement, with a midspan displacement RMSE of 3.427 mm, a three-quarter-span
 RMSE of 1.856 mm, an acceleration RMSE of 0.0269 m/s$^2$, and a peak-displacement
 MAE of 2.525 mm. Its displacement and acceleration $R^2$ values are 0.765 and
@@ -2653,7 +2691,7 @@ necessarily lead to equally accurate bridge-response estimation.
 
 Representative displacement and acceleration histories are shown in Fig.~\ref{fig:representative_bridge_response}, while Fig.~\ref{fig:bridge_response_metrics} summarizes the overall structural comparison. The difference between
 traffic-load accuracy and bridge-response fidelity is examined further in
-Section 5.3.
+Section~\ref{sec:load_response_fidelity}.
 
 \begin{figure*}[!t]
 \centering
