@@ -34,6 +34,8 @@
 \usepackage{multirow}
 \usepackage{booktabs}
 \usepackage{float}
+\usepackage{placeins}
+\usepackage{dblfloatfix}
 \usepackage{titlesec}
 \usepackage{subcaption}
 
@@ -2817,6 +2819,10 @@ is important when estimated traffic fields are utilized for bridge dynamic
 analysis.
 
 
+% Flush all pending result floats before the conclusion so that
+% figures and tables do not drift into the references.
+\FloatBarrier
+
 \section{Conclusion}
 
 This manuscript presents
@@ -2836,6 +2842,9 @@ consistency substantially reduces excessive displacement and acceleration
 responses produced by the raw residual load field.
 
 These findings indicate that traffic-load estimation for VBI should be evaluated not only in terms of aggregate prediction accuracy but also in terms of the spatial consistency of the predicted loading. The present study is based on a controlled simulation dataset and a reduced-order structural model. The traffic generator and the Physics-Based rollout also use the same IDM/MOBIL model family, so the present results should be interpreted as model-consistent numerical evidence rather than field validation. Future work should therefore examine traffic-model mismatch, explicit future-arrival modeling, more detailed bridge models, structural damping and road-surface effects, and field-based traffic and bridge-response data.
+
+% Final safeguard: keep all floats before the bibliography.
+\FloatBarrier
 
 \bibliographystyle{IEEEtran}
 \bibliography{Ref}
