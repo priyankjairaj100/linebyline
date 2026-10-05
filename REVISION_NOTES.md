@@ -1,68 +1,52 @@
 # Paper 03 revision notes
 
-This repository is the default GitHub destination for the revised Overleaf source used in this chat.
-
-## Current revised source
+## Current manuscript
 - `MTT_reveyrand_updated.tex`
-- The abstract was intentionally left unchanged.
+- End-to-end writing/consistency pass completed.
+- Current manuscript commit: `77d42e8d2ff460a38c2b4b76b2ca4721a0741e10`.
 
-## Consistency changes applied
-- Restored mean-speed definition
-- Corrected binary occupancy BCE
-- Corrected empty-cell loss
-- Corrected Algorithm 1 predicted occupancy symbol (2)
-- Simplified support-consistent load equation
-- Corrected occupied-cell set
-- Clarified F1 binary labels
-- Defined L and S compact notation
-- Defined traffic cell centers
-- Clarified 500 m to 318 m mapping
-- Corrected VBI opening sentence
-- Added label sec:physics_guided_evolution
-- Added label sec:occupancy_training
-- Added label sec:traffic_bridge_transfer
-- Added label sec:vbi_dynamic_formulation
-- Added label sec:reduced_vbi
-- Added label sec:vbi_configuration
-- Added label sec:traffic_results
-- Added label sec:bridge_response_results
-- Added label sec:load_response_fidelity
-- Added label sec:support_consistency_results
-- Replaced hard-coded Section 3.3.5 (1)
-- Replaced hard-coded Section 3.6 (1)
-- Replaced hard-coded Section 3.5 (1)
-- Replaced hard-coded Section 3.2 (2)
-- Replaced hard-coded Results subsection pair
-- Standardized structural time-step symbol (4)
-- Corrected Newmark equation to coupled coordinate u
-- Separated direct traffic projection from total modal forcing
-- Clarified adopted modal frequencies
-- Clarified lane-equivalent approximation
-- Clarified adopted equivalent vehicle parameters
-- Corrected heterogeneity/regime figure references
-- Corrected dataset table reference (1)
-- Corrected traffic-performance table reference (1)
-- Corrected traffic result figure references
-- Replaced broken structural table reference
-- Corrected bridge-response figure references
-- Corrected typo 'distict' (1)
-- Corrected Support-Consistent Residual description
-- Corrected conclusion parallel construction (1)
-- Added missing Introduction punctuation
-- Added missing Introduction paragraph punctuation
-- Corrected multirate subsection spelling (1)
-- Removed duplicate material after first \end{document}
+## Manuscript-only consistency fixes completed
+- Title now states that the scenarios are heterogeneous and simulated.
+- Abstract problem statement corrected and the suspension-bridge overclaim removed.
+- Abstract subject--verb agreement corrected.
+- One-based longitudinal cell indexing made consistent with the manuscript's (s=1,\ldots,N_x) convention.
+- Remaining hard-coded section numbers replaced with LaTeX references.
+- Vehicle-weight notation standardized from (W_i) to (w_i).
+- Count occupancy (O) and binary support occupancy (B) clarified.
+- Undefined occupancy-loss count (N) described.
+- Load-consistency wording aligned with the displayed objective.
+- ML objective renamed to (\mathcal J) to avoid collision with the mechanical Lagrangian (\mathcal L).
+- The controlled model-consistent IDM/MOBIL benchmark is now stated explicitly.
+- Algorithm 1 now states that it does not specify a separate future-arrival mechanism.
+- Channel-count notation changed from ambiguous (C) to (N_c=4).
+- Global RMSE wording now states that it is computed on channel-scaled tensors.
+- Common warm-start state is explicitly reused in Algorithm 2.
+- Duplicate/mis-captioned use of `18.1.png`--`18.5.png` removed.
+- Raw Residual treatment relative to the six-row structural table clarified.
+- All remaining active figures and tables are cited in the prose.
+- Support-consistency extrema distinguished from sequence-averaged RMSE/MAE.
+- Remaining local typo corrected.
+- Conclusion limitations aligned with the simulation-only benchmark.
 
-## Static checks
-- Abstract unchanged: yes
-- Missing internal \ref/\eqref labels detected: none
-- Duplicate labels detected: none
-- Full LaTeX compilation: not performed in this environment
+## Static consistency checks
+- Missing internal references: none.
+- Duplicate labels: none.
+- Unreferenced active figures: none.
+- Unreferenced active tables: none.
+- Hard-coded numbered section references: none.
+- Duplicate active `18.1.png`--`18.5.png` block: removed.
+- Active `\\end{document}` count: 1.
+- Full Overleaf/LaTeX compilation was not performed in this environment.
 
-## Still requires structural-solver verification
+## Still requires implementation/code verification
+These items were deliberately not invented or filled from general knowledge:
 - Exact modal mass, stiffness, and damping construction.
-- Provenance/implementation of the five adopted modal frequencies.
-- Exact lane-equivalent reduction and vehicle entry/exit handling.
-- Exact block entries of M, C, K, and f.
+- Exact source and implementation of the five adopted modal frequencies.
+- Exact lane-equivalent vehicle reduction.
+- Exact block entries of the coupled (\mathbf M,\mathbf C,\mathbf K,\mathbf f) system.
 - Gravity treatment and kN-to-force/mass conversion.
-- Whether reported response statistics exactly match the solver's computed statistics.
+- Vehicle entry/exit and changing-occupancy handling inside the actual solver/forecast code.
+- Exact residual-network architecture beyond the hyperparameters already stated.
+- Final numerical values of the occupancy threshold and all loss weights.
+- Exact empty-lane handling in the implemented Algorithm 2 equivalent.
+- Exact definitions used by code for any plotted metric not already explicitly defined by the manuscript.
