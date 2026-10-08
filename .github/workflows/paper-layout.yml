@@ -1,0 +1,32 @@
+name: Paper layout-only revision
+
+on:
+  push:
+    paths:
+      - 'revisions/20261008_layout_input.tex'
+      - 'tools/fix_paper_layout.py'
+      - '.github/workflows/paper-layout.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  layout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply layout changes and verify content preservation
+        run: python tools/fix_paper_layout.py
+      - name: Save the revised Overleaf source and check report
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add MTT_reveyrand_updated.tex LAYOUT_CHECK.md revisions/20261008_layout_checks.json
+          if git diff --cached --quiet; then
+            echo 'The checked layout source is already current.'
+          else
+            git commit -m 'Apply verified layout-only fixes to latest uploaded manuscript'
+            git push
+          fi
