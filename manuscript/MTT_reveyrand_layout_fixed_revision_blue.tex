@@ -1,0 +1,2913 @@
+\documentclass[journal]{IEEEtran}
+
+%\usepackage[retainorgcmds]{IEEEtrantools}
+%\usepackage{bibentry}  
+\usepackage{xcolor,soul,framed}
+
+\usepackage[pdftex]{graphicx}
+\graphicspath{{../pdf/}{../jpeg/}}
+\DeclareGraphicsExtensions{.pdf,.jpeg,.png}
+
+\usepackage[cmex10]{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\newcommand{\mathbfcal}[1]{\boldsymbol{\mathcal{#1}}}
+
+\usepackage{array}
+\usepackage{mdwmath}
+\usepackage{mdwtab}
+
+\usepackage[numbers,sort&compress]{natbib}
+
+\usepackage{eqparbox}
+\usepackage{url}
+\usepackage{caption}
+
+% ---------------- ALGORITHM ----------------
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+
+% Define \Return used in your algorithm
+\SetKw{Return}{return}
+
+% -------------------------------------------
+
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{dblfloatfix}
+\usepackage{titlesec}
+\usepackage{subcaption}
+
+% Float-placement tuning for dense two-column layout.
+% These settings keep figures/tables before the bibliography while reducing
+% unnecessary white space caused by top-only float queues.
+\setcounter{topnumber}{5}
+\setcounter{bottomnumber}{5}
+\setcounter{totalnumber}{10}
+\setcounter{dbltopnumber}{5}
+\renewcommand{\topfraction}{0.98}
+\renewcommand{\bottomfraction}{0.98}
+\renewcommand{\textfraction}{0.02}
+\renewcommand{\floatpagefraction}{0.80}
+\renewcommand{\dbltopfraction}{0.98}
+\renewcommand{\dblfloatpagefraction}{0.80}
+
+
+
+\begin{document}
+%\bstctlcite{IEEEexample:BSTcontrol}
+    \title{A Physics-Guided Framework for Spatiotemporal Traffic-Load Estimation and Occupancy-Consistent Vehicle-Bridge Interaction (VBI) Analysis}
+\author{\footnotesize
+    Nidhi Agrawal\textsuperscript{1},
+  %  Rehan Nath\textsuperscript{1},
+  %  Aashritha Lakshmi Mallampati\textsuperscript{1},
+   % Keshav Goel\textsuperscript{1},
+    Shashank Gupta\textsuperscript{1},
+    Shuvendu Narayan Patel\textsuperscript{2},
+    Devendra Gokul Patil\textsuperscript{3}
+    
+    {\small
+    \textsuperscript{1}Department of Computer Science and Information Systems, Birla Institute of Technology and Science, Pilani, Pilani Campus, India. \\
+    \textsuperscript{2}Department of Civil Engineering, Birla Institute of Technology and Science, Pilani, Pilani Campus, India.\\
+    \textsuperscript{3}Department of Mechanical Engineering, Birla Institute of Technology and Science, Pilani, Goa Campus, India. \\
+    }
+     % small space before corresponding author
+    {\scriptsize \textbf{Corresponding Author:} Shashank Gupta} \\[0.ex]
+    \scriptsize
+    \texttt{p20240429@pilani.bits-pilani.ac.in, shashank.gupta@pilani.bits-pilani.ac.in, shuvendu@pilani.bits-pilani.ac.in, devendrap@goa.bits-pilani.ac.in}
+}
+
+
+
+
+\maketitle
+
+\begin{abstract}
+The complex dynamic interaction between stochastic traffic and long-span bridges has important implications for bridge design and safety assessment. Reliable vehicle-bridge interaction (VBI) analysis requires a numerically stable and consistent coupled formulation that captures both macroscopic traffic-flow conditions and microscopic vehicle dynamics. However, a crucial challenge lies in the translation of constantly changing traffic states into a physically consistent spatiotemporal load field for VBI analysis. Moreover, precise prediction of vehicle occupancy, spatial position, and speed does not always positively ensure that the subsequent live traffic loads are spatially and temporally consistent with the underlying bridge domain. Such irregularities propagate through the coupled formulation and result in substantial errors in predicted dynamic responses of the bridge. This manuscript proposes a physics-guided traffic-bridge interaction framework that explicitly focusses on achieving the spatiotemporal traffic-load consistency and investigates its impact on VBI response predictions. Specifically, the microscopic vehicle behaviour is modelled by integrating the Intelligent Driver Model (IDM) with Minimizing Overall Braking Induced by Lane Changes (MOBIL) method. A residual spatiotemporal correction is then introduced to refine the resulting physics-based traffic evolution. The estimated traffic-load field is subsequently incorporated into a reduced-order VBI formulation to evaluate the corresponding bridge dynamic response. Evaluation on 600 test windows from 37 unseen simulated traffic scenarios highlights that enforcing occupancy-load support consistency reduces the maximum predicted midspan displacement from 191.12 to 40.61 mm and acceleration from 5.281 to 0.605 m/s$^2$. {\color{blue}A frame-wise load-matched control further shows that, at essentially identical aggregate loading, the Support-Consistent Residual reduces mean midspan displacement RMSE from 4.395 to 3.727~mm and acceleration RMSE from 0.0439 to 0.0321~m/s$^2$, with positive 95\% scenario-cluster bootstrap intervals for midspan displacement, acceleration, and peak-midspan displacement error.} These findings demonstrate that precise traffic-state estimation alone is not adequate enough for reliable bridge-response prediction; maintaining spatiotemporal consistency between the traffic occupancy and the corresponding load field is also important for meaningful VBI response estimation.
+\end{abstract}
+
+% === KEYWORDS ====================================================================
+% =================================================================================
+\begin{IEEEkeywords}
+Vehicle-bridge interaction, traffic-load forecasting,
+physics-guided learning, spatiotemporal residual correction,
+reduced-order modeling, bridge dynamic response,
+occupancy-load support consistency.
+\end{IEEEkeywords}
+
+\begin{figure*}[!tbp]
+    \centering
+    \includegraphics[width=\textwidth]{Framework.png}
+    \caption{Overall workflow of the proposed physics-guided traffic--bridge interaction framework.}
+    \label{fig:overall_framew}
+\end{figure*}
+
+
+\section{Introduction}
+
+Vehicle-bridge interaction (VBI) systems have been significantly investigated for characterizing the vibration response of vehicles and bridge structures under moving traffic load scenarios \cite{han2024,yin2025,huang2026,mei2025}. As traffic flow increases and vehicle loads become more diverse, the dynamic behaviour of the coupled system becomes increasingly complex \cite{aloisio2023,lifeng2023}. As a result, the loads imposed by moving vehicles and the resulting bridge response continuously influence each other through the VBI \cite{kreslin2024,shi2024,yau2024}. This complexity becomes more evident when multiple vehicles with distinct spatial positions, weights, velocities, and driving behaviours are simultaneously present on bridge structures \cite{yin2023,wei2025}. Consequently, realistic representation of traffic loading and accurate vehicle--bridge coupled analysis are essential for evaluating bridge dynamic response and structural safety under actual traffic conditions \cite{cantero2024,dong2023}.
+
+To obtain precise bridge responses under stochastic traffic conditions, various traffic-flow models have been introduced to model the randomness and evolution of real-time traffic within vehicle-bridge coupled systems \cite{huang2026,wang2024}. The cellular automaton (CA) model has been widely utilized for traffic simulation since prescribed driving rules, including acceleration, deceleration, and lane-changing behaviour, can be represented in discrete space and time \cite{rickert1996,ruan2017}. However, the discrete-cell formulation imposes restrictions on vehicle spacing and velocity, which may limit the accurate modelling of stochastic traffic scenarios \cite{ruan2017}. In comparison with CA-based approaches, the Intelligent Driver Model (IDM) provides a deterministic, continuous space--time representation, which can describe individual vehicle positions and microscopic driving behaviour on the bridge \cite{treiber2000,geng2023,liu2023}. Existing IDM-based techniques have also incorporated lane-changing behaviour to simulate multi-lane traffic flow under different congestion scenarios \cite{caprani2016,obrien2015,xiong2020}.
+
+Although IDM-based traffic simulation can reproduce realistic vehicle motion, the traffic state generated by the model does not, by itself, guarantee a physically consistent representation of the corresponding traffic-load field. In particular, the spatial distribution, temporal evolution, and loading support of individual vehicles must remain consistent with their predicted occupancy and motion to ensure reliable bridge-load estimation \cite{wangxu2019}. This traffic-to-load translation represents an important challenge in traffic--bridge interaction analysis. In previous vehicle bridge coupled studies, vehicle and bridge responses have often been solved as separate subsystems, with vehicle contact forces calculated in one environment and subsequently applied to the bridge model in another \cite{yangfonder1996,green1994,pan2002}. The bridge displacement response is then returned to the vehicle subsystem, and the interaction forces are recalculated iteratively until convergence is achieved. Such approaches require repeated information exchange between the vehicle and bridge models and may involve extensive coding and multiple software platforms. More specifically, while generating the traffic information independently from some model of the structure, errors or discrepancies in the translation of vehicle states into spatially and temporally consistent bridge loads can easily propagate into the coupled VBI response. Therefore, an effective VBI framework cannot explicitly focus on simulating the realistic vehicle motion but should also ensure that the resulting traffic-load field remains physically consistent with the changing traffic states and underlying bridge domain. Recent traffic-bridge interaction frameworks have consequently sought to integrate traffic simulation information, vehicle models, and bridge models within a unified coupled system for dynamic response analysis.
+
+In this context, Hamilton's principle has been increasingly adopted for the dynamic analysis of VBI systems because it provides an energy-based variational framework for the consistent formulation of the coupled vehicle--bridge dynamics \cite{mo2024}. Through the stationary condition of the \textbf{action functional}, the equations of motion governing the vehicle and bridge can be systematically derived by accounting for the kinetic and potential energies of the coupled system. Existing studies have employed Hamilton's principle to formulate coupled dynamic equations for beam--vehicle systems and other bridge-related dynamic problems involving nonlinear structural behaviour. In recent VBI formulations, the bridge has been represented using Euler--Bernoulli beam theory, while the vehicle subsystem is described using spring-damper models and coupled with the bridge through relative vehicle-bridge motion. The resulting coupled dynamic equations can subsequently be solved using the Newmark-$\beta$ method to obtain the time-dependent response of the VBI system \cite{mo2024,newmark1959}. Thus, Hamilton's principle provides a consistent formulation of the coupled vehicle-bridge dynamics, while the accuracy of the resulting bridge response remains dependent on the physical consistency of the traffic-load information supplied to the coupled system.
+
+The information obtained from the traffic-flow model can therefore be incorporated into the vehicle model to determine the traffic loading applied to the bridge. Vehicle information such as spatial location, velocity, weight, lane distribution, and driving behaviour provides the basis for establishing the evolving traffic state required by the traffic--bridge interaction system. However, these variables must be translated into a traffic-load field that is consistent with both the spatial occupancy of vehicles and their temporal evolution. The resulting traffic loads are subsequently introduced into the coupled vehicle-bridge system for dynamic response analysis. Compared with simplified moving-force or influence-line approaches, consideration of the vehicle-bridge coupled effect can provide a more realistic representation of bridge response under stochastic traffic flow \cite{yang2005,cantero2010}. Nevertheless, accurate estimation of traffic states alone may not be sufficient to ensure reliable bridge-response prediction if the corresponding load field does not preserve the required spatial and temporal consistency. This highlights the importance of explicitly addressing spatiotemporal traffic-load consistency within the traffic-bridge interaction framework.
+
+Although the traffic state generated by the IDM can reproduce realistic vehicle motion, the initial spatial location, vehicle weight, and speed of all vehicles on the bridge are not provided by the IDM alone. Moreover, conventional vehicle-bridge coupled analyses may require the vehicle and bridge to be solved iteratively as two independent subsystems, resulting in extensive coding and the use of multiple software applications. On the structural side, existing VBI models are also often established using simplified assumptions, which may limit their ability to represent the complex dynamic characteristics of the coupled system. More importantly, the influence of inconsistencies between predicted traffic occupancy and the corresponding spatial load distribution on subsequent bridge-response predictions remains insufficiently investigated. These limitations indicate the need for a unified framework that can incorporate realistic traffic information, preserve its spatiotemporal loading consistency, and subsequently propagate the resulting traffic loads into a coupled vehicle--bridge system for dynamic response analysis.
+
+To address these challenges, this study develops a physics-guided traffic-bridge interaction framework for dynamic response analysis under evolving heterogeneous traffic scenarios. First, the traffic state is represented in terms of vehicle spatial location, velocity, weight, lane distribution, and driving behaviour, and its evolution is obtained using microscopic vehicle motion models. The Intelligent Driver Model (IDM) and the Minimizing Overall Braking Induced by Lane Changes (MOBIL) rule are employed to represent longitudinal vehicle motion and lane-changing behaviour, respectively. A residual spatiotemporal correction is then introduced to compensate for deviations in the physics-based traffic evolution and obtain the resulting traffic-load field, which is subsequently subjected to occupancy–load support consistency enforcement. In particular, the framework preserves consistency between predicted vehicle occupancy and the corresponding spatial support of bridge loading. Subsequently, the traffic-load information is incorporated into the vehicle model and coupled with the bridge model to establish the complete VBI system. Finally, the bridge and vehicle subsystems are represented using Euler-Bernoulli beam and spring--damper models, respectively, and the coupled dynamic response is obtained through Hamilton's principle and Newmark-$\beta$ time integration. The proposed framework is evaluated using unseen heterogeneous simulated traffic scenarios to investigate how occupancy–load support consistency within the spatiotemporal traffic-load field influences the predicted dynamic response of the bridge.
+
+
+\section{Methodology}
+\subsection{Overview of the Proposed Framework}
+\label{sec:framework_overview}
+
+The proposed framework addresses VBI under evolving heterogeneous traffic, where the structural response depends on the magnitude, spatial distribution, and temporal evolution of vehicle loading. Instead of treating traffic evolution and bridge dynamics independently, the framework interconnects the estimated traffic state directly to the subsequent VBI analysis through a spatially distributed traffic-load field.
+
+Let the observed traffic history be denoted by $\mathbf{X}_{\mathrm{obs}}$, and let $\widehat{\mathbf{Y}}$ represent the estimated future traffic-load state. Hence, the overall response-estimation procedure can be expressed compactly as
+
+\begin{equation}
+\begin{aligned}
+\widehat{\mathbf{R}}
+&=
+\mathcal{S}_{\mathrm{VBI}}
+\left[
+\mathcal{T}_{\mathrm{TB}}
+\left(
+\widehat{\mathbf{Y}}
+\right)
+\right],
+\\
+\widehat{\mathbf{Y}}
+&=
+\mathcal{F}_{\mathrm{tr}}
+\left(
+\mathbf{X}_{\mathrm{obs}}
+\right).
+\end{aligned}
+\label{eq:overall_framework}
+\end{equation}
+
+where $\mathcal{F}_{\mathrm{tr}}$ denotes the traffic-state estimation process, $\mathcal{T}_{\mathrm{TB}}$ represents the traffic-to-bridge load transformation, and $\mathcal{S}_{\mathrm{VBI}}$ is the coupled VBI solution operator.
+
+Unlike an aggregate-load representation, the estimated traffic field retains the lane-wise and longitudinal distribution of vehicle loading. The resultant bridge response is evaluated in terms of vertical displacement and acceleration at selected locations along the structural span. The complete workflow is illustrated in Fig.~\ref{fig:overall_framew}.
+
+\subsection{Bridge-Centric Traffic State and Load-Field Representation}
+\label{sec:traffic_state_representation}
+
+\subsubsection{Vehicle-Level Traffic State}
+\label{subsec:vehicle_state}
+
+Initially, the traffic condition is represented at the individual-vehicle level so that heterogeneous vehicle motion and loading are retained before construction of the spatial bridge-load field. Let the state of vehicle $i$ at time $t$ be expressed as
+
+\begin{equation}
+\mathbf{s}_{i}(t)
+=
+\left[
+x_i(t),\,
+\ell_i(t),\,
+v_i(t),\,
+w_i,\,
+c_i
+\right]^{T},
+\label{eq:vehicle_state}
+\end{equation}
+
+where $x_i(t)$ denotes the longitudinal position, $\ell_i(t)$ indicates the lane index, $v_i(t)$ denotes the travelling speed, $w_i$ is the vehicle weight, and $c_i$ represents the vehicle-type category. Hence, the set of vehicles simultaneously present on the bridge can be expressed as
+
+\begin{equation}
+\mathcal{V}(t)
+=
+\left\{
+\mathbf{s}_{i}(t)
+\right\}_{i=1}^{N_v(t)},
+\label{eq:vehicle_set}
+\end{equation}
+
+where $N_v(t)$ denotes the number of vehicles present within the traffic domain at time $t$.
+
+This representation preserves the vehicle-level information required for constructing a spatially distributed traffic-load field for the subsequent VBI analysis.
+
+
+\subsubsection{Lane-Space Discretization}
+\label{subsec:lane_space}
+
+The traffic domain is discretized in the transverse and longitudinal directions. Suppose $L_{\mathrm{tr}}$ denotes the traffic-domain length, $N_{\ell}$ the number of lanes, and $N_x$ the number of longitudinal cells. The longitudinal cell size is
+
+\begin{equation}
+\Delta x
+=
+\frac{L_{\mathrm{tr}}}{N_x}.
+\label{eq:cell_size}
+\end{equation}
+
+For a vehicle at position $x_i(t)$, the corresponding longitudinal cell is
+
+\begin{equation}
+s_i(t)
+=
+\min\left\{
+N_x,\,
+1+\left\lfloor
+\frac{x_i(t)}{\Delta x}
+\right\rfloor
+\right\},
+\label{eq:cell_index}
+\end{equation}
+
+where the clipping at $N_x$ keeps the downstream boundary within the final one-based cell. Its transverse location is identified by $\ell_i(t)$. Hence, each vehicle is assigned to a lane-cell location
+
+\begin{equation}
+\mathcal{C}_i(t)
+=
+\left(
+\ell_i(t),\,s_i(t)
+\right).
+\label{eq:lane_cell_location}
+\end{equation}
+
+In the implemented traffic representation,
+
+\begin{equation}
+N_{\ell}=4,
+\qquad
+N_x=50,
+\label{eq:grid_configuration}
+\end{equation}
+
+so that the spatial arrangement of vehicle loading is retained before its transfer to the VBI model. In the subsequent compact notation, $L=N_{\ell}$ denotes the number of lanes and $S=N_x$ denotes the number of longitudinal cells.
+
+
+\begin{figure*}[!tbp]
+\centering
+
+\begin{minipage}[b]{0.46\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{2.1.png}
+\end{minipage}
+\hfill
+\begin{minipage}[b]{0.46\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{2.2.png}
+\end{minipage}
+
+\vspace{3mm}
+
+\begin{minipage}[b]{0.46\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{2.3.png}
+\end{minipage}
+\hfill
+\begin{minipage}[b]{0.46\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{2.4.png}
+\end{minipage}
+
+\caption{Multi-channel traffic-load matrix representation for one traffic scenario.}
+\label{fig:multi_channel_traffic}
+\end{figure*}
+
+
+\subsubsection{Vehicle-State-to-Load-Field Mapping}
+\label{subsec:load_field_mapping}
+
+Let $\mathcal{V}_{\ell,s}(t)$ represent the set of vehicles occupying lane $\ell$ and longitudinal cell $s$ at time $t$. The local occupancy is
+
+\begin{equation}
+O_{\ell,s}(t)
+=
+\left|
+\mathcal{V}_{\ell,s}(t)
+\right|.
+\label{eq:cell_occupancy}
+\end{equation}
+
+For occupancy classification and load-support enforcement, the corresponding binary occupancy state is defined as
+
+\begin{equation}
+B_{\ell,s}(t)
+=
+\mathbb{I}\left[O_{\ell,s}(t)>0\right],
+\label{eq:binary_occupancy}
+\end{equation}
+
+where $B_{\ell,s}(t)=1$ indicates that at least one vehicle is present
+in the lane-cell and $B_{\ell,s}(t)=0$ otherwise.
+
+The mean vehicle speed in an occupied cell is
+\begin{equation}
+V_{\ell,s}(t)
+=
+\frac{1}{O_{\ell,s}(t)}
+\sum_{i\in\mathcal{V}_{\ell,s}(t)}
+v_i(t),
+\qquad
+O_{\ell,s}(t)>0,
+\label{eq:mean_vehicle_speed}
+\end{equation}
+with
+\begin{equation}
+V_{\ell,s}(t)=0,
+\qquad
+O_{\ell,s}(t)=0,
+\label{eq:empty_vehicle_speed}
+\end{equation}
+for empty cells.
+
+Hence, the corresponding traffic load is defined as
+
+\begin{equation}
+P_{\ell,s}(t)
+=
+\sum_{i\in\mathcal{V}_{\ell,s}(t)}
+w_i,
+\label{eq:cell_load}
+\end{equation}
+
+so that both the magnitude and spatial location of vehicle loading are retained.
+
+Similarly, the mean vehicle-type code is expressed as
+
+\begin{equation}
+C_{\ell,s}(t)
+=
+\frac{1}{O_{\ell,s}(t)}
+\sum_{i\in\mathcal{V}_{\ell,s}(t)}
+c_i,
+\qquad
+O_{\ell,s}(t)>0,
+\label{eq:mean_vehicle_type}
+\end{equation}
+
+with
+
+\begin{equation}
+C_{\ell,s}(t)=0,
+\qquad
+O_{\ell,s}(t)=0,
+\label{eq:empty_vehicle_type}
+\end{equation}
+
+for empty cells.
+
+Therefore, the lane-cell traffic state is
+
+\begin{equation}
+\mathbf{Y}_{\ell,s}(t)
+=
+\left[
+O_{\ell,s}(t),\,
+V_{\ell,s}(t),\,
+P_{\ell,s}(t),\,
+C_{\ell,s}(t)
+\right]^{T},
+\label{eq:lane_cell_state}
+\end{equation}
+
+and the complete bridge-traffic field is gathered over all lanes and longitudinal cells as
+
+\begin{equation}
+\mathbf{Y}(t)
+=
+\left\{
+\mathbf{Y}_{\ell,s}(t)
+\right\}_{
+\substack{
+\ell=1,\ldots,N_{\ell}\\
+s=1,\ldots,N_x
+}},
+\label{eq:traffic_field}
+\end{equation}
+
+with
+
+\begin{equation}
+\mathbf{Y}(t)
+\in
+\mathbb{R}^{N_{\ell}\times N_x\times 4}.
+\label{eq:traffic_field_dimension}
+\end{equation}
+
+
+\subsubsection{Spatiotemporal Load-Field Assembly}
+\label{subsec:spatiotemporal_field}
+
+The lane-space representation is extended over time to form the spatiotemporal traffic tensor
+
+\begin{equation}
+\mathbfcal{Y}
+=
+\left\{
+\mathbf{Y}(t_1),
+\mathbf{Y}(t_2),
+\ldots,
+\mathbf{Y}(t_T)
+\right\}.
+\label{eq:spatiotemporal_tensor}
+\end{equation}
+
+Therefore, each traffic frame retains the lane-wise and longitudinal distributions of occupancy, mean speed, vehicle weight, and vehicle-type information.
+
+For a reference instant $t$, the observed sequence is expressed as
+
+\begin{equation}
+\mathbf{X}_{\mathrm{obs}}
+=
+\left[
+\mathbf{Y}_{t-T_{\mathrm{obs}}+1},
+\ldots,
+\mathbf{Y}_{t}
+\right],
+\label{eq:observed_sequence}
+\end{equation}
+
+and the subsequent traffic-load sequence by
+
+\begin{equation}
+\mathbf{Y}_{\mathrm{future}}
+=
+\left[
+\mathbf{Y}_{t+1},
+\ldots,
+\mathbf{Y}_{t+T_{\mathrm{pred}}}
+\right].
+\label{eq:future_sequence}
+\end{equation}
+
+The implemented configuration utilizes four lanes, 50 longitudinal cells, and four traffic channels, with
+
+\begin{equation}
+T_{\mathrm{obs}}=20,
+\qquad
+T_{\mathrm{pred}}=30.
+\label{eq:sequence_lengths}
+\end{equation}
+
+Since the traffic channels have distinct physical magnitudes, channel-wise normalization is applied as
+
+\begin{equation}
+\widetilde{Y}^{(c)}
+=
+\frac{Y^{(c)}}{\alpha_c},
+\label{eq:channel_normalization}
+\end{equation}
+
+where $\alpha_c$ represents the scaling factor for channel $c$. The vehicle-weight channel is returned to its physical scale before being supplied to the traffic--bridge coupling procedure.
+
+A representative multi-channel traffic-load field is shown in Fig.~\ref{fig:multi_channel_traffic}, while Fig. \ref{fig:spatiotemporal_traffic} illustrates the corresponding spatiotemporal evolution of occupancy, mean speed, and traffic loading.
+
+\subsection{Physics-Guided Traffic Evolution Estimation}
+\label{sec:physics_guided_evolution}
+
+Primarily, the future bridge-traffic state is propagated by utilizing physically interpretable vehicle-motion models and is subsequently refined by a learned residual correction. The vehicle configuration at the final observed instant provides the initial condition for the future evolution. Longitudinal motion is described through the Intelligent Driver Model (IDM), while lane-changing behaviour is represented by utilizing a simplified MOBIL-like rule.
+
+Let the complete vehicle configuration at the final observed instant be denoted by
+
+\begin{equation}
+\mathcal{V}_{t}
+=
+\left\{
+z_i(t)
+\right\}_{i=1}^{N_t}.
+\end{equation}
+
+Its subsequent physics-based evolution is represented by
+
+\begin{equation}
+\mathcal{V}_{t+\tau}^{\mathrm{phy}}
+=
+\Phi_{\mathrm{phy}}
+\left(
+\mathcal{V}_{t+\tau-1}^{\mathrm{phy}}
+\right),
+\qquad
+\tau=1,\ldots,T_{\mathrm{pred}},
+\end{equation}
+
+here $\Phi_{\mathrm{phy}}$ represents the microscopic traffic-update operator. The resulting vehicle states are mapped back to the lane-space representation defined in Section~\ref{sec:traffic_state_representation}.
+
+Fig. \ref{fig:spatiotemporal_traffic} illustrates a representative spatiotemporal traffic sequence in terms of occupancy, mean speed, and traffic-load distribution.
+
+\begin{figure*}[!tbp]
+\centering
+
+\begin{minipage}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{3.1.png}\\
+    (a)
+\end{minipage}
+\hfill
+\begin{minipage}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{3.2.png}\\
+    (b)
+\end{minipage}
+\hfill
+\begin{minipage}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{3.3.png}\\
+    (c)
+\end{minipage}
+
+\caption{Spatiotemporal bridge-traffic state representation for a representative traffic sequence: (a) vehicle occupancy, (b) mean vehicle speed, and (c) traffic-load distribution over the bridge span during the prediction interval.}
+\label{fig:spatiotemporal_traffic}
+\end{figure*}
+
+
+\subsubsection{Longitudinal Vehicle Motion Using IDM}
+
+For a following vehicle $i$ and its leader $j$, the longitudinal spacing can be written as:
+
+\begin{equation}
+d_i(t)
+=
+x_j(t)-x_i(t)-L_j,
+\end{equation}
+
+and the relative velocity is
+
+\begin{equation}
+\Delta v_i(t)
+=
+v_i(t)-v_j(t).
+\end{equation}
+
+The desired dynamic spacing is given by
+
+\begin{equation}
+d_i^{*}(t)
+=
+d_0
++
+v_i(t)T_h
++
+\frac{
+v_i(t)\Delta v_i(t)
+}{
+2\sqrt{ab}
+},
+\end{equation}
+
+where $d_0$ is the minimum spacing, $T_h$ the desired time headway, $a$ the maximum acceleration, and $b$ the comfortable deceleration.
+
+The IDM acceleration is expressed as:
+
+\begin{equation}
+a_i(t)
+=
+a
+\left[
+1
+-
+\left(
+\frac{v_i(t)}{v_0}
+\right)^{\delta}
+-
+\left(
+\frac{d_i^{*}(t)}{d_i(t)}
+\right)^2
+\right].
+\end{equation}
+
+The vehicle speed and position are then updated using the traffic time step $\Delta t$. This produces the longitudinal evolution required for reconstructing the future lane-space traffic field.
+
+
+\subsubsection{Lane-Changing Behaviour Using a MOBIL-Like Rule}
+
+Lane-changing behaviour is represented using a simplified MOBIL-like rule based on incentive and safety conditions. A candidate lane change is accepted when the expected acceleration benefit exceeds the prescribed threshold,
+
+\begin{equation}
+\Delta a_i
++
+p
+\left(
+\Delta a_{\mathrm{new}}
++
+\Delta a_{\mathrm{old}}
+\right)
+>
+\Delta a_{\mathrm{th}},
+\end{equation}
+
+where $p$ is the politeness factor and $\Delta a_{\mathrm{th}}$ is the minimum incentive threshold.
+
+The lane change must also satisfy the safety condition
+
+\begin{equation}
+a_{\mathrm{new}}^{\mathrm{after}}
+\geq
+-b_{\mathrm{safe}},
+\end{equation}
+
+where $b_{\mathrm{safe}}$ is the maximum admissible deceleration of the new following vehicle.
+
+When both conditions are satisfied, the vehicle lane index is updated while its weight and vehicle category remain unchanged. The longitudinal position and speed continue to evolve according to the IDM update.
+
+
+\subsubsection{Physics-Based Load-Field Rollout}
+
+After each IDM and lane-change update, the propagated vehicle configuration is converted to the lane-space representation defined in Section~\ref{sec:traffic_state_representation}:
+
+\begin{equation}
+M_{t+\tau}^{\mathrm{phy}}
+=
+\mathcal{R}\left(
+\mathcal{V}_{t+\tau}^{\mathrm{phy}}
+\right),
+\qquad
+\tau=1,\ldots,T_{\mathrm{pred}},
+\end{equation}
+
+where $\mathcal{R}$ denotes the vehicle-state-to-load-field mapping operator.
+
+Therefore, the complete physics-based future sequence is expressed as:
+
+\begin{equation}
+Y^{\mathrm{phy}}
+=
+\left[
+M_{t+1}^{\mathrm{phy}},
+M_{t+2}^{\mathrm{phy}},
+\ldots,
+M_{t+T_{\mathrm{pred}}}^{\mathrm{phy}}
+\right].
+\end{equation}
+
+Each frame retains occupancy, speed, vehicle-weight, and vehicle-type information over the complete lane-space grid.
+
+
+\subsubsection{Residual Spatiotemporal Correction}
+
+The physics-based rollout provides an interpretable future traffic trajectory, however it may accumulate local errors in vehicle position, lane assignment, speed, and load intensity. Hence, a learned residual correction is applied to the physics-based sequence rather than predicting the complete future traffic field independently.
+
+Let $X_t$ denote the observed traffic history and $Y^{\mathrm{phy}}$ the physics-based rollout. The residual correction is
+
+\begin{equation}
+\Delta\widehat{Y}
+=
+\mathcal{F}_{\theta}
+\left(
+X_t,
+Y^{\mathrm{phy}}
+\right),
+\end{equation}
+
+and the corrected traffic field is
+
+\begin{equation}
+\widehat{Y}
+=
+Y^{\mathrm{phy}}
++
+\Delta\widehat{Y}.
+\end{equation}
+
+The correction module preserves the lane-space organization of the traffic field and estimates local deviations from the physically propagated trajectory. The resulting output has the same temporal, lane, spatial, and channel dimensions as the physics-based sequence.
+
+
+\subsubsection{Occupancy Calibration and Training Objective}
+\label{sec:occupancy_training}
+
+{\color{blue}
+The lane-space traffic representation is inherently sparse, since a large proportion of spatial cells remain unoccupied at a given time instant. The count-valued channel $O_{\ell,s}$ remains part of the traffic state, whereas the binary state $B_{\ell,s}$ is used for occupancy classification and load-support enforcement. Small non-zero predictions in reference-empty cells may therefore introduce artificial vehicle-load contributions when the predicted weight field is transferred to the VBI model. In the implemented residual model, the occupancy quantity entering the weighted binary cross-entropy loss is obtained directly from the normalized predicted occupancy channel rather than from a separate occupancy-logit head. Let $\widehat{M}_{\tau,l,s}^{(o)}$ denote the normalized predicted occupancy channel and let $s_{\mathrm{occ}}$ denote its normalization factor. The probability used in the occupancy loss is
+
+\begin{equation}
+p_{\tau,l,s}^{\mathrm{occ}}
+=
+\operatorname{clip}
+\left(
+s_{\mathrm{occ}}\widehat{M}_{\tau,l,s}^{(o)},
+10^{-5},
+1-10^{-5}
+\right).
+\end{equation}
+}
+
+{\color{blue}
+For validation calibration and downstream load-support enforcement, the normalized predicted occupancy channel is thresholded directly:
+\begin{equation}
+\widehat{B}_{\tau,l,s}
+=
+\mathbb{I}\left[
+\widehat{M}_{\tau,l,s}^{(o)}
+\geq \eta_{\mathrm{occ}}
+\right].
+\label{eq:predicted_binary_occupancy}
+\end{equation}
+The threshold $\eta_{\mathrm{occ}}$ is selected using the validation partition; the canonical residual model uses $\eta_{\mathrm{occ}}=0.23$. The predicted binary occupancy mask \(\hat B_{\tau,l,s}\) is used to suppress load-related predictions in cells classified as unoccupied so that artificial vehicle loads do not propagate into the downstream VBI analysis.
+}
+The residual correction model is trained using a composite objective designed to balance traffic-state reconstruction, consistency with the physics-based rollout, occupancy classification, and suppression of false activations. Let $\Omega$ denote the set of prediction indices over time, lane, longitudinal position, and traffic channel. The reconstruction term is written as
+
+\begin{equation}
+\mathcal{L}_{\mathrm{data}}
+=
+\frac{1}{|\Omega|}
+\sum_{(\tau,l,s,c)\in\Omega}
+\omega_c
+\left(
+\widehat{M}_{\tau,l,s,c}
+-
+M_{\tau,l,s,c}
+\right)^2,
+\end{equation}
+
+where $\omega_c$ controls the relative contribution of the corresponding traffic channel.
+
+To discourage unnecessary deviations from the physics-based evolution, a rollout-consistency term is introduced as
+
+\begin{equation}
+\mathcal{L}_{\mathrm{phy}}
+=
+\frac{1}{|\Omega|}
+\sum_{(\tau,l,s,c)\in\Omega}
+\left(
+\widehat{M}_{\tau,l,s,c}
+-
+M_{\tau,l,s,c}^{\mathrm{phy}}
+\right)^2.
+\end{equation}
+
+As occupied cells form a smaller fraction of the traffic tensor, occupancy classification is additionally constrained using a weighted binary cross-entropy term, where $N$ denotes the number of time--lane--cell occupancy entries included in the corresponding loss sum.
+
+\begin{equation}
+\begin{aligned}
+\mathcal{L}_{\mathrm{occ}}
+&=
+-
+\frac{1}{N}
+\sum_{\tau,l,s}
+\Bigg[
+\lambda_{+}
+B_{\tau,l,s}
+\log
+p_{\tau,l,s}^{\mathrm{occ}}
+\\
+&\qquad+
+\left(
+1-B_{\tau,l,s}
+\right)
+\log
+\left(
+1-p_{\tau,l,s}^{\mathrm{occ}}
+\right)
+\Bigg].
+\end{aligned}
+\end{equation}
+
+where $B_{\tau,l,s}$ denotes the binary reference occupancy state defined by
+Eq.~\eqref{eq:binary_occupancy}, and $\lambda_{+}$ compensates for class imbalance.
+
+{\color{blue}
+The implemented empty-cell term suppresses diffuse predicted occupancy specifically at locations that are empty in both the reference data and the Physics-Based rollout. Defining
+\begin{equation}
+E_{\tau,l,s}
+=
+\mathbb{I}\left[
+B_{\tau,l,s}=0
+\ \land\
+B_{\tau,l,s}^{\mathrm{phy}}=0
+\right],
+\end{equation}
+the corresponding penalty is
+\begin{equation}
+\mathcal{L}_{\mathrm{empty}}
+=
+\frac{
+\sum_{\tau,l,s}
+E_{\tau,l,s}
+\left(
+\widehat{M}_{\tau,l,s}^{(o)}
+\right)^2
+}{
+\sum_{\tau,l,s}E_{\tau,l,s}
+}.
+\end{equation}
+}
+
+{\color{blue}
+Since the vehicle-weight channel provides the direct interface with the subsequent VBI analysis, the implemented load-consistency term compares the total normalized vehicle weight at each future frame after summation over all lanes and longitudinal cells:
+\begin{equation}
+\mathcal{L}_{\mathrm{load}}
+=
+\frac{1}{T_{\mathrm{pred}}}
+\sum_{\tau=1}^{T_{\mathrm{pred}}}
+\left[
+\sum_{l=1}^{L}\sum_{s=1}^{S}
+\widehat{M}_{\tau,l,s}^{(w)}
+-
+\sum_{l=1}^{L}\sum_{s=1}^{S}
+M_{\tau,l,s}^{(w)}
+\right]^2.
+\end{equation}
+The implementation additionally uses an $L_1$ penalty on the learned residual, $\mathcal{L}_{\mathrm{res}}=\operatorname{mean}|\Delta\widehat{Y}|$, and a temporal smoothness penalty, $\mathcal{L}_{\mathrm{smooth}}=\operatorname{mean}[(\widehat{M}_{\tau}-\widehat{M}_{\tau-1})^2]$.
+}
+
+{\color{blue}
+Therefore, the implemented training objective is
+\begin{equation}
+\begin{aligned}
+\mathcal{J}
+={}&
+\lambda_{\mathrm{data}}\mathcal{L}_{\mathrm{data}}
++
+\lambda_{\mathrm{phy}}\mathcal{L}_{\mathrm{phy}}
++
+\lambda_{\mathrm{occ}}\mathcal{L}_{\mathrm{occ}}
++
+\lambda_{\mathrm{empty}}\mathcal{L}_{\mathrm{empty}}
+\\
+&+
+\lambda_{\mathrm{res}}\mathcal{L}_{\mathrm{res}}
++
+\lambda_{\mathrm{load}}\mathcal{L}_{\mathrm{load}}
++
+\lambda_{\mathrm{smooth}}\mathcal{L}_{\mathrm{smooth}}.
+\end{aligned}
+\end{equation}
+For the canonical run, the corresponding weights are $\lambda_{\mathrm{data}}=1.0$, $\lambda_{\mathrm{phy}}=0.05$, $\lambda_{\mathrm{occ}}=0.25$, $\lambda_{\mathrm{empty}}=1.2$, $\lambda_{\mathrm{res}}=0.01$, $\lambda_{\mathrm{load}}=0.10$, and $\lambda_{\mathrm{smooth}}=0.001$; the optional Markov regularization term is disabled. These settings remain fixed during held-out test evaluation.
+}
+
+The complete physics-guided traffic-load estimation procedure is summarized in Algorithm~\ref{alg:traffic_load_estimation}. The pseudocode propagates the vehicle set available at the end of the observation interval and does not specify a separate future-arrival mechanism.
+
+\begin{algorithm}[!htbp]
+\caption{Physics-Guided Spatiotemporal Load-Field Estimation}
+\label{alg:traffic_load_estimation}
+\footnotesize
+
+\KwData{
+Observed traffic-load sequence $\mathbf{X}_{t}$,
+last observed vehicle state $\mathcal{V}_{t}$,
+prediction interval $T_{\mathrm{pred}}$,
+trained residual mapping $\mathcal{F}_{\theta}$,
+occupancy threshold $\eta_{\mathrm{occ}}$
+}
+
+\KwResult{
+Estimated traffic-load field
+$\widehat{\mathbf{Y}}=
+[\widehat{\mathbf{M}}_{t+1},\ldots,
+\widehat{\mathbf{M}}_{t+T_{\mathrm{pred}}}]$
+}
+
+$\mathcal{V}^{\mathrm{phy}}_{t} \leftarrow \mathcal{V}_{t}$\;
+
+\For{$\tau \leftarrow 1$ \KwTo $T_{\mathrm{pred}}$}{
+
+    \ForEach{vehicle $i \in \mathcal{V}^{\mathrm{phy}}_{t+\tau-1}$}{
+
+        Identify the preceding vehicle $j$ in lane $l_i$\;
+
+        $d_i \leftarrow
+        x_j-x_i-L_j$\;
+
+        $\Delta v_i \leftarrow v_i-v_j$\;
+
+        $d_i^{*} \leftarrow
+        d_0+v_iT_h+
+        \dfrac{v_i\Delta v_i}{2\sqrt{ab}}$\;
+
+        $a_i \leftarrow
+        a\!\left[
+        1-\left(\dfrac{v_i}{v_0}\right)^{\delta}
+        -\left(\dfrac{d_i^{*}}{d_i}\right)^2
+        \right]$\;
+
+        $v_i^{+}
+        \leftarrow
+        v_i+a_i\Delta t$\;
+
+        $x_i^{+}
+        \leftarrow
+        x_i+v_i\Delta t+
+        \dfrac{1}{2}a_i(\Delta t)^2$\;
+
+        Evaluate the MOBIL incentive condition
+        \[
+        \Delta a_i+
+        p(\Delta a_{\mathrm{new}}
+        +\Delta a_{\mathrm{old}})
+        >
+        \Delta a_{\mathrm{th}}
+        \]\;
+
+        Evaluate the MOBIL safety condition
+        \[
+        a_{\mathrm{new}}^{\mathrm{after}}
+        \geq -b_{\mathrm{safe}}
+        \]\;
+
+        \eIf{both MOBIL conditions are satisfied}{
+            $l_i^{+}\leftarrow l_i^{\mathrm{new}}$\;
+        }{
+            $l_i^{+}\leftarrow l_i$\;
+        }
+
+        $\mathbf{z}_{i}^{\mathrm{phy}}
+        \leftarrow
+        [x_i^{+},\,l_i^{+},\,v_i^{+},\,w_i,\,c_i]^{T}$\;
+    }
+
+    $\mathcal{V}^{\mathrm{phy}}_{t+\tau}
+    \leftarrow
+    \{
+    \mathbf{z}_{i}^{\mathrm{phy}}
+    \}_{i=1}^{N_{t+\tau}}$\;
+
+    $\mathbf{M}^{\mathrm{phy}}_{t+\tau}
+    \leftarrow
+    \mathcal{R}
+    \left(
+    \mathcal{V}^{\mathrm{phy}}_{t+\tau}
+    \right)$\;
+}
+
+$\mathbf{Y}^{\mathrm{phy}}
+\leftarrow
+[
+\mathbf{M}^{\mathrm{phy}}_{t+1},
+\ldots,
+\mathbf{M}^{\mathrm{phy}}_{t+T_{\mathrm{pred}}}
+]$\;
+
+$\Delta\widehat{\mathbf{Y}}
+\leftarrow
+\mathcal{F}_{\theta}
+\left(
+\mathbf{X}_{t},
+\mathbf{Y}^{\mathrm{phy}}
+\right)$\;
+
+$\widehat{\mathbf{Y}}
+\leftarrow
+\mathbf{Y}^{\mathrm{phy}}
++
+\Delta\widehat{\mathbf{Y}}$\;
+
+\For{$\tau \leftarrow 1$ \KwTo $T_{\mathrm{pred}}$}{
+    \For{$l \leftarrow 1$ \KwTo $L$}{
+        \For{$s \leftarrow 1$ \KwTo $S$}{
+
+            $p^{\mathrm{occ}}_{\tau,l,s}
+            \leftarrow
+            \sigma
+            \left(
+            z^{\mathrm{occ}}_{\tau,l,s}
+            \right)$\;
+
+            $\widehat{B}_{\tau,l,s}
+            \leftarrow
+            \mathbb{I}
+            \left[
+            p^{\mathrm{occ}}_{\tau,l,s}
+            \geq
+            \eta_{\mathrm{occ}}
+            \right]$\;
+
+            \If{$\widehat{B}_{\tau,l,s}=0$}{
+                Suppress load-related values in cell $(l,s)$\;
+            }
+        }
+    }
+}
+
+$\widehat{\mathbf{Y}}
+\leftarrow
+\operatorname{InverseScale}
+\left(
+\widehat{\mathbf{Y}}
+\right)$\;
+
+\Return{$\widehat{\mathbf{Y}}$}\;
+
+\end{algorithm}
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\linewidth]{4.png}
+    \caption{Lane-wise spatial traffic-load distribution.}
+    \label{fig:load distrib}
+\end{figure}
+
+\subsection{Traffic-Bridge Coupling and Load Transfer}
+\label{sec:traffic_bridge_transfer}
+
+The estimated traffic-load field is defined over discrete lane--space cells, whereas the VBI formulation operates in structural coordinates. Therefore, a traffic-to-bridge coupling procedure is introduced to transfer the predicted vehicle loading to the structural model while retaining its spatial distribution. The vehicle-weight channel is first returned to its physical scale and preserved separately for each lane and longitudinal cell rather than being reduced to a single total bridge load.
+
+Let $P_{\ell,s}(t)$ denote the vehicle load associated with lane $\ell$ and longitudinal cell $s$ at time $t$. Since the traffic and structural domains may have different physical lengths, the longitudinal cell location is first expressed in normalized form,
+
+\begin{equation}
+x_s^{\mathrm{tr}}
+=
+\left(s-\frac{1}{2}\right)
+\frac{L_{\mathrm{tr}}}{S},
+\qquad
+s=1,\ldots,S,
+\label{eq:traffic_cell_center}
+\end{equation}
+
+and the normalized longitudinal coordinate is
+
+\begin{equation}
+\xi_s
+=
+\frac{x_s^{\mathrm{tr}}}{L_{\mathrm{tr}}},
+\label{eq:normalized_cell_coordinate}
+\end{equation}
+
+and mapped to the structural coordinate as
+
+\begin{equation}
+x_s^{\mathrm{b}}
+=
+\xi_s L_{\mathrm{b}},
+\end{equation}
+
+where $L_{\mathrm{tr}}$ and $L_{\mathrm{b}}$ denote the traffic-domain and structural-span lengths, respectively. The transformation preserves relative longitudinal position rather than equal physical distance. Thus, the 500~m traffic coordinate is normalized before it is projected onto the 318~m structural span.
+
+
+\subsubsection{Full-Field Spatial Load Projection}
+
+For lane $\ell$, the instantaneous total traffic load is acquired from the contributions of all longitudinal cells,
+
+\begin{equation}
+P_{\ell}(t)
+=
+\sum_{s=1}^{S}
+P_{\ell,s}(t).
+\end{equation}
+
+Rather than applying this load at a single equivalent position, the contribution of each occupied lane-cell is retained in the structural projection. Let $\phi_r(x)$ denote the $r$-th bridge mode shape. Then, the modal contribution of the lane-space traffic field can be written in the general form as:
+
+\begin{equation}
+Q_r^{\mathrm{tr}}(t)
+=
+\sum_{\ell=1}^{L}
+\sum_{s=1}^{S}
+P_{\ell,s}(t)
+\phi_r\left(x_s^{\mathrm{b}}\right).
+\end{equation}
+
+This quantity represents the modal projection of the spatial traffic-load field and is distinguished from the final VBI force generated by the coupled vehicle and bridge dynamics. Retaining the complete lane-cell distribution allows traffic states with similar total vehicle weight but distinct longitudinal load locations to produce distinct structural excitation.
+
+A representative lane-wise spatial load distribution is shown in Fig. \ref{fig:load distrib}.
+
+
+\subsubsection{Observed-History Dynamic Initialization}
+
+The structural state at the beginning of the future traffic interval depends on the loading that has already acted on the bridge during the observation period. Hence, the VBI system is not reinitialized from rest for each estimated traffic sequence. Instead, the common observed traffic history is first transferred through the same traffic-to-bridge coupling procedure and propagated through the VBI model.
+
+Let the observed traffic sequence be denoted by
+
+\begin{equation}
+\mathbf{X}_{\mathrm{obs}}.
+\end{equation}
+
+The dynamic state at the end of the observation interval is represented as
+
+\begin{equation}
+\mathbf{z}_{0}
+=
+\mathcal{I}
+\left(
+\mathbf{X}_{\mathrm{obs}};
+\boldsymbol{\theta}_{b},
+\boldsymbol{\theta}_{v}
+\right),
+\end{equation}
+
+where $\mathcal{I}(\cdot)$ denotes the dynamic initialization procedure and $\boldsymbol{\theta}_{b}$ and $\boldsymbol{\theta}_{v}$ contain the adopted bridge and vehicle parameters.
+
+The initialized state contains the bridge modal and equivalent vehicle dynamic coordinates required to continue the coupled solution. The same state $\mathbf{z}_{0}$ is then used for all estimated future traffic-load fields. Consequently, differences among the resulting bridge responses arise from differences in the estimated traffic excitation rather than from inconsistent structural initial conditions.
+
+
+
+\subsubsection{Multirate Traffic-to-Structural Time Transfer}
+
+The traffic-load field and the structural response are resolved at distinct temporal scales. In the implemented framework, traffic states are available at
+
+\begin{equation}
+\Delta t_{\mathrm{tr}}
+=
+0.5~\mathrm{s},
+\end{equation}
+
+whereas the VBI equations are integrated using
+
+\begin{equation}
+\Delta t_{\mathrm{s}}
+=
+0.02~\mathrm{s}.
+\end{equation}
+
+For a structural time instant $t$ located between two consecutive traffic frames $t_k$ and $t_{k+1}$, the interpolation factor is
+
+\begin{equation}
+\alpha(t)
+=
+\frac{t-t_k}
+{t_{k+1}-t_k}.
+\end{equation}
+
+The corresponding lane-cell load is evaluated as
+
+\begin{equation}
+P_{\ell,s}(t)
+=
+\left[1-\alpha(t)\right]
+P_{\ell,s}(t_k)
++
+\alpha(t)
+P_{\ell,s}(t_{k+1}).
+\end{equation}
+
+Then, the interpolated loads are utilized to update the spatial participation terms required by the VBI solver. With the adopted time increments, each 0.5 s traffic interval is resolved using 25 structural integration increments.
+
+Linear interpolation increases the temporal resolution of the excitation supplied to the structural integrator but does not reconstruct traffic-frequency content that is absent from the original 0.5 s traffic representation. The resulting continuously updated load field is supplied to the coupled vehicle-bridge equations described in the following section. The multirate transfer procedure is illustrated in Fig. \ref{fig:multirate}.
+
+
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\linewidth]{5.png}
+    \caption{Multirate traffic-to-VBI time transfer.}
+    \label{fig:multirate}
+\end{figure}
+
+
+
+
+\subsection{VBI Dynamic Formulation}
+\label{sec:vbi_dynamic_formulation}
+
+The spatially and temporally resolved traffic loading from the traffic-to-bridge interface is introduced into the VBI formulation. The
+bridge and vehicle subsystems interact through the relative vertical motion
+between the vehicle suspension and the bridge surface. The continuous
+formulation presented below provides the mechanical basis for the reduced-order
+implementation developed in Section~\ref{sec:reduced_vbi}.
+
+
+\subsubsection{Bridge and Vehicle Dynamic Representation}
+
+The bridge is represented using an Euler-Bernoulli beam. Let $w(x,t)$ denote the vertical bridge displacement at longitudinal coordinate $x$. The governing equation is
+
+\begin{equation}
+\mu_b
+\frac{\partial^2 w(x,t)}{\partial t^2}
++
+EI
+\frac{\partial^4 w(x,t)}{\partial x^4}
+=
+p(x,t),
+\end{equation}
+
+where $\mu_b$ is the bridge mass per unit length and $EI$ is the flexural rigidity.
+
+For the simply supported representation,
+
+\begin{equation}
+w(0,t)=w(L_b,t)=0,
+\end{equation}
+
+and
+
+\begin{equation}
+\frac{\partial^2 w}{\partial x^2}(0,t)
+=
+\frac{\partial^2 w}{\partial x^2}(L_b,t)
+=
+0.
+\end{equation}
+
+The vehicle subsystem is represented by a vertical spring--damper
+coordinate $z_i(t)$. For vehicle $i$, the relative suspension deformation is defined as
+
+\begin{equation}
+\delta_i(t)
+=
+z_i(t)
+-
+w\!\left(x_i(t),t\right)
+-
+r_i(t),
+\end{equation}
+
+where $x_i(t)$ is obtained from the traffic-motion model and $r_i(t)$ denotes the optional road-profile excitation.
+
+Usually, the corresponding interaction force is expressed as
+
+\begin{equation}
+F_i(t)
+=
+k_i \delta_i(t)
++
+c_i \dot{\delta}_i(t).
+\end{equation}
+
+The vehicle vertical equation can then be written as
+
+\begin{equation}
+m_i \ddot{z}_i(t)
++
+c_i \dot{\delta}_i(t)
++
+k_i \delta_i(t)
+=
+0,
+\end{equation}
+
+subject to the chosen vertical coordinate convention.
+
+For the reported numerical study, the road-profile term is set to zero,
+as described in Section~\ref{sec:vbi_configuration}.
+
+%\begin{figure*}[!tbp]
+   % \centering
+    %\includegraphics[width=\textwidth]{6.png}
+ %   \caption{Residual architecture for physics-guided traffic-load prediction \& future bridge-load estimation.}
+  %  \label{fig:arch}
+%\end{figure*}
+
+\subsubsection{Energy Basis of the Coupled System}
+
+The bridge kinetic and bending strain energies are
+
+\begin{equation}
+T_b
+=
+\frac{1}{2}
+\int_{0}^{L_b}\mu_b
+\left(
+\frac{\partial w(x,t)}{\partial t}
+\right)^2
+\,dx,
+\end{equation}
+
+and
+
+\begin{equation}
+U_b
+=
+\frac{1}{2}
+\int_{0}^{L_b}
+EI
+\left(
+\frac{\partial^2 w(x,t)}{\partial x^2}
+\right)^2
+\,dx.
+\end{equation}
+
+For the vertical vehicle coordinate,
+
+\begin{equation}
+T_{v,i}
+=
+\frac{1}{2}
+m_i
+\dot{z}_i^{\,2}(t),
+\end{equation}
+
+while the suspension energy is
+
+\begin{equation}
+U_{s,i}
+=
+\frac{1}{2}
+k_i
+\delta_i^{\,2}(t).
+\end{equation}
+
+The total Lagrangian is
+
+\begin{equation}
+\mathcal{L}
+=
+T-U
+=
+\left(
+T_b+\sum_i T_{v,i}
+\right)
+-
+\left(
+U_b+\sum_i U_{s,i}
+\right),
+\end{equation}
+
+where the total kinetic and potential energies are assembled from the
+bridge and vehicle contributions.
+
+Application of Hamilton's principle,
+
+\begin{equation}
+\delta
+\int_{t_1}^{t_2}
+\mathcal{L}\,dt
+=
+0,
+\end{equation}
+
+together with the non-conservative damping contribution, yields the
+coupled vehicle-bridge equations of motion.
+
+
+\subsubsection{Coupled Bridge Excitation}
+
+For multiple vehicles acting on the bridge, the continuous bridge
+equation may be written as
+
+\begin{equation}
+\begin{aligned}
+\mu_b
+\frac{\partial^2 w(x,t)}{\partial t^2}
++
+EI
+\frac{\partial^4 w(x,t)}{\partial x^4}
+&=
+\\[-0.2em]
+&\quad
+\sum_{i\in\mathcal{A}(t)}
+F_i(t)
+\delta_{\mathrm{D}}
+\left(
+x-x_i(t)
+\right).
+\end{aligned}
+\end{equation}
+
+where $\mathcal{A}(t)$ denotes the set of active vehicles and $\delta_{\mathrm{D}}(\cdot)$ is the Dirac delta function.
+
+The continuous formulation is subsequently transformed into the reduced
+modal representation described in Section~\ref{sec:reduced_vbi}, where the lane-space traffic
+loading is retained during construction of the coupled excitation.
+
+\begin{algorithm}[!htbp]
+\caption{Multirate Traffic-to-Structure VBI Response Computation}
+\label{alg:vbi_response}
+\scriptsize
+
+\KwData{
+Observed load field $\mathbf{P}^{obs}$,
+estimated load field $\widehat{\mathbf{P}}$,
+mode shapes $\phi_r(x)$,
+bridge/vehicle parameters
+$\Theta_b,\Theta_v$,
+$\Delta t_{tr}$, $\Delta t_s$
+}
+
+\KwResult{
+$w(L_b/4,t)$, $w(L_b/2,t)$,
+$w(3L_b/4,t)$, $\ddot w(L_b/2,t)$
+}
+
+$N_{sub}\leftarrow \Delta t_{tr}/\Delta t_s$\;
+
+$x_s^b\leftarrow
+\left(s-\frac{1}{2}\right)L_b/S,
+\quad s=1,\ldots,S$\;
+
+$\beta\leftarrow0.25,\qquad\gamma\leftarrow0.50$\;
+
+Initialize
+$\mathbf{s}_{VBI}\leftarrow\mathbf{s}_{init}$\;
+
+\tcp{Observed-history dynamic initialization}
+
+\For{$k\leftarrow1$ \KwTo $T_{obs}-1$}{
+
+    \For{$j\leftarrow1$ \KwTo $N_{sub}$}{
+
+        $\rho\leftarrow j/N_{sub}$\;
+
+        $\mathbf{P}^{*}\leftarrow
+        (1-\rho)\mathbf{P}^{obs}_{k}
+        +\rho\mathbf{P}^{obs}_{k+1}$\;
+
+        \For{$l\leftarrow1$ \KwTo $L$}{
+            $P_l^{*}\leftarrow\sum_{s=1}^{S}P^{*}_{l,s}$\;
+
+            $\alpha_{l,s}^{*}\leftarrow
+            P^{*}_{l,s}/P_l^{*},
+            \quad P_l^{*}>0$\;
+
+            $h_{l,r}^{*}\leftarrow
+            \sum_{s=1}^{S}
+            \alpha_{l,s}^{*}\phi_r(x_s^b)$\;
+        }
+
+        $F_r^{*}\leftarrow
+        \sum_{l=1}^{L}P_l^{*}h_{l,r}^{*}$\;
+
+        $(\mathbf{M},\mathbf{C},\mathbf{K},\mathbf{f})
+        \leftarrow
+        \mathcal{A}
+        (\mathbf{P}^{*},\mathbf{h}^{*},\mathbf{F}^{*};
+        \Theta_b,\Theta_v)$\;
+
+        $\mathbf{s}_{VBI}\leftarrow
+        \operatorname{Newmark}
+        (\mathbf{M},\mathbf{C},\mathbf{K},\mathbf{f},
+        \mathbf{s}_{VBI},
+        \Delta t_s,\beta,\gamma)$\;
+    }
+}
+
+$\mathbf{s}_{VBI}^{0}\leftarrow\mathbf{s}_{VBI}$\;
+
+$\widehat{\mathbf{P}}_{0}
+\leftarrow
+\mathbf{P}^{obs}_{T_{obs}}$\;
+
+$\mathbf{s}_{VBI}\leftarrow\mathbf{s}_{VBI}^{0}$\;
+
+\tcp{Response under the estimated traffic-load field}
+
+\For{$\tau\leftarrow0$ \KwTo $T_{pred}-1$}{
+
+    \For{$j\leftarrow1$ \KwTo $N_{sub}$}{
+
+        $\rho\leftarrow j/N_{sub}$\;
+
+        $\widehat{\mathbf{P}}^{*}\leftarrow
+        (1-\rho)\widehat{\mathbf{P}}_{\tau}
+        +\rho\widehat{\mathbf{P}}_{\tau+1}$\;
+
+        \For{$l\leftarrow1$ \KwTo $L$}{
+            $\widehat P_l^{*}
+            \leftarrow
+            \sum_{s=1}^{S}\widehat P^{*}_{l,s}$\;
+
+            $\widehat\alpha_{l,s}^{*}
+            \leftarrow
+            \widehat P^{*}_{l,s}/\widehat P_l^{*}$\;
+
+            $\widehat h_{l,r}^{*}\leftarrow            \sum_{s=1}^{S}
+            \widehat\alpha_{l,s}^{*}\phi_r(x_s^b)$\;
+        }
+
+        $\widehat F_r^{*}\leftarrow
+        \sum_{l=1}^{L}
+        \widehat P_l^{*}\widehat h_{l,r}^{*}$\;
+
+        $(\mathbf{M},\mathbf{C},\mathbf{K},\mathbf{f})
+        \leftarrow
+        \mathcal{A}
+        (\widehat{\mathbf{P}}^{*},
+        \widehat{\mathbf{h}}^{*},
+        \widehat{\mathbf{F}}^{*};
+        \Theta_b,\Theta_v)$\;
+
+        $\mathbf{s}_{VBI}\leftarrow
+        \operatorname{Newmark}
+        (\mathbf{M},\mathbf{C},\mathbf{K},\mathbf{f},
+        \mathbf{s}_{VBI},
+        \Delta t_s,\beta,\gamma)$\;
+
+        Store $\{q_r(t),\ddot q_r(t)\}_{r=1}^{N_m}$\;
+    }
+}
+
+\ForEach{$x_p\in
+\{L_b/4,L_b/2,3L_b/4\}$}{
+    $w(x_p,t)\leftarrow
+    \sum_{r=1}^{N_m}\phi_r(x_p)q_r(t)$\;
+}
+
+$\ddot w(L_b/2,t)\leftarrow
+\sum_{r=1}^{N_m}
+\phi_r(L_b/2)\ddot q_r(t)$\;
+
+\Return{$w(L_b/4,t),\,w(L_b/2,t),\,
+w(3L_b/4,t),\,\ddot w(L_b/2,t)$}\;
+
+\end{algorithm}
+
+\subsection{Reduced-Order VBI Computational Formulation}
+\label{sec:reduced_vbi}
+
+The continuous vehicle-bridge
+equations introduced in Section~\ref{sec:vbi_dynamic_formulation} are transformed into a reduced-order system
+for numerical response computation. The bridge displacement is represented
+using a finite modal basis, while the vehicle subsystem is described through
+lane-equivalent vertical coordinates. The original lane-wise and longitudinal
+traffic-load distribution is retained during construction of the modal
+excitation so that the structural response remains sensitive to the spatial
+location of the moving loads.
+
+This formulation avoids
+solving the continuous bridge equation directly at each structural time step
+and provides an efficient representation for repeated VBI evaluation over the
+complete traffic sequence.
+
+\begin{figure*}[!tbp]
+    \centering
+    \includegraphics[width=\textwidth]{7.png}
+    \caption{Bridge modal basis.}
+    \label{fig:bridge modal}
+\end{figure*}
+
+\subsubsection{Modal Representation of the Bridge Response}
+
+The bridge displacement
+is approximated using $N_m$ retained vibration
+modes,
+
+\begin{equation}
+w(x,t)
+\approx
+\sum_{r=1}^{N_m}
+\phi_r(x)q_r(t),
+\end{equation}
+
+where $\phi_r(x)$ is the $r$-th modal basis
+function and $q_r(t)$ is the corresponding
+generalized coordinate.
+
+For the adopted simply
+supported basis,
+
+\begin{equation}
+\phi_r(x)
+=
+\sin
+\left(
+\frac{r\pi x}{L_b}
+\right).
+\end{equation}
+
+The bridge velocity and
+acceleration are obtained as
+
+\begin{equation}
+\dot{w}(x,t)
+=
+\sum_{r=1}^{N_m}
+\phi_r(x)\dot{q}_r(t),
+\end{equation}
+
+and
+
+\begin{equation}
+\ddot{w}(x,t)
+=
+\sum_{r=1}^{N_m}
+\phi_r(x)\ddot{q}_r(t).
+\end{equation}
+
+Projection onto the
+modal basis gives
+
+\begin{equation}
+M_r\ddot{q}_r(t)
++
+C_r\dot{q}_r(t)
++
+K_rq_r(t)
+=
+Q_r(t),
+\qquad
+r=1,\ldots,N_m,
+\end{equation}
+
+where $M_r$, $C_r$, and $K_r$ are the generalized
+modal mass, damping, and stiffness, respectively.
+
+The total generalized modal force $Q_r(t)$ is distinguished from the
+direct traffic-load projection. The latter is
+
+\begin{equation}
+Q_r^{\mathrm{tr}}(t)
+=
+\sum_{\ell=1}^{L}
+\sum_{s=1}^{S}
+P_{\ell,s}(t)
+\phi_r
+\left(
+x_s^{\mathrm{b}}
+\right).
+\end{equation}
+
+The direct projection therefore depends on the instantaneous longitudinal
+distribution of traffic loading rather than only on the total bridge load.
+The complete coupled-system forcing is represented through $\mathbf{f}(t)$
+after vehicle--bridge interaction terms are assembled. The first five retained
+modal basis functions are shown in Fig. \ref{fig:bridge modal}.
+
+\begin{figure*}[!tbp]
+\centering
+
+% ==================== First row ====================
+
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{8.1.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{8.2.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{8.3.png}
+\end{minipage}
+
+\vspace{4mm}
+
+% ==================== Second row ====================
+
+\makebox[\textwidth][c]{%
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{8.4.png}
+    \end{minipage}
+    \hspace{0.04\textwidth}
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{8.5.png}
+    \end{minipage}
+}
+
+\caption{Vehicle heterogeneity in the numerical dataset:
+\textbf{(a)} Gross vehicle weight distribution;
+\textbf{(b)} mean observed vehicle speed distribution;
+\textbf{(c)} vehicle length distribution;
+\textbf{(d)} maximum-acceleration parameter distribution;
+\textbf{(e)} reaction-time parameter distribution.}
+
+\label{fig:vehicle_heterogeneity}
+
+\end{figure*}
+
+\subsubsection{Coupled Vehicle-Bridge Reduced System}
+
+The retained bridge
+modal coordinates are coupled with lane-equivalent vertical vehicle
+coordinates. Let
+
+\begin{equation}
+\mathbf{q}(t)
+=
+\begin{bmatrix}
+q_1(t) &
+q_2(t) &
+\cdots &
+q_{N_m}(t)
+\end{bmatrix}^{T}
+\end{equation}
+
+denote the bridge modal
+vector and
+
+\begin{equation}
+\mathbf{z}(t)
+=
+\begin{bmatrix}
+z_1(t) &
+z_2(t) &
+\cdots &
+z_L(t)
+\end{bmatrix}^{T}
+\end{equation}
+
+the lane-equivalent vehicle coordinates. Each lane-equivalent coordinate is a reduced vertical degree of freedom used for coupling with the retained bridge modes; this representation does not establish an exact instantaneous aggregation of all individual vehicles in that lane.
+
+The complete reduced
+coordinate vector is
+
+\begin{equation}
+\mathbf{u}(t)
+=
+\begin{bmatrix}
+\mathbf{q}(t) \\
+\mathbf{z}(t)
+\end{bmatrix}.
+\end{equation}
+
+For lane $\ell$, the bridge
+deformation participating in the coupling is generated from the lane-specific
+modal participation terms,
+
+\begin{equation}
+w_{\ell}(t)
+=
+\mathbf{h}_{\ell}^{T}(t)
+\mathbf{q}(t),
+\end{equation}
+
+where $\mathbf{h}_{\ell}(t)$ is updated from the
+interpolated lane-cell load distribution.
+
+The relative vertical
+deformation is then
+
+\begin{equation}
+\delta_{\ell}(t)
+=
+z_{\ell}(t)
+-
+\mathbf{h}_{\ell}^{T}(t)
+\mathbf{q}(t),
+\end{equation}
+
+and the lane-equivalent
+suspension force is written as
+
+\begin{equation}
+F_{\ell}(t)
+=
+k_{\ell}\delta_{\ell}(t)
++
+c_{\ell}\dot{\delta}_{\ell}(t).
+\end{equation}
+
+The complete reduced
+VBI system is assembled as
+
+\begin{equation}
+\mathbf{M}(t)\ddot{\mathbf{u}}(t)
++
+\mathbf{C}(t)\dot{\mathbf{u}}(t)
++
+\mathbf{K}(t)\mathbf{u}(t)
+=
+\mathbf{f}(t),
+\end{equation}
+
+where $\mathbf{M}(t)$, $\mathbf{C}(t)$, and $\mathbf{K}(t)$ are the assembled
+system matrices and $\mathbf{f}(t)$ contains the
+time-dependent traffic excitation.
+
+The coupling terms are updated at each structural time step using the evolving lane-space load distribution, allowing changes in the spatial traffic configuration to influence the bridge response continuously.
+
+\subsubsection{Newmark-$\beta$ Time Integration of the Coupled System}
+
+The reduced coupled
+system is integrated using the Newmark average-acceleration scheme. At
+structural time $t_n$,
+
+\begin{equation}
+\mathbf{M}_n\ddot{\mathbf{u}}_n
++
+\mathbf{C}_n\dot{\mathbf{u}}_n
++
+\mathbf{K}_n\mathbf{u}_n
+=
+\mathbf{f}_n.
+\end{equation}
+
+The numerical
+parameters are
+
+\begin{equation}
+\beta = 0.25,
+\qquad
+\gamma = 0.50,
+\end{equation}
+
+with structural time
+step
+
+\begin{equation}
+\Delta t_s = 0.02~\mathrm{s}.
+\end{equation}
+
+At each structural
+increment, the interpolated lane-cell load field is utilized to update the
+modal participation terms and the corresponding system matrices and excitation
+vector. The resulting state is then advanced to the next time step using the
+standard Newmark update relations.
+
+
+\subsubsection{Bridge Response Reconstruction}
+
+After solving the reduced coupled system, the physical bridge
+response is reconstructed from the modal coordinates. The vertical displacement
+is
+
+\begin{equation}
+u_b(\xi,t)
+=
+\sum_{r=1}^{N_m}
+\phi_r(\xi)q_r(t),
+\end{equation}
+
+and the corresponding acceleration is
+
+\begin{equation}
+\ddot{u}_b(\xi,t)
+=
+\sum_{r=1}^{N_m}
+\phi_r(\xi)\ddot{q}_r(t).
+\end{equation}
+
+In the present study, bridge displacement is evaluated at
+
+\begin{equation}
+\xi
+=
+\frac{L_b}{4},
+\qquad
+\frac{L_b}{2},
+\qquad
+\frac{3L_b}{4},
+\end{equation}
+
+while acceleration is evaluated at midspan,
+
+\begin{equation}
+\ddot{u}_{\mathrm{mid}}(t)
+=
+\ddot{u}_b
+\left(
+\frac{L_b}{2},t
+\right).
+\end{equation}
+
+Subsequently, the reconstructed response histories are used for comparison with the simulation-reference bridge response.
+
+
+
+
+\section{Experimental Setup}
+
+\subsection{Bridge-Traffic Scenario and Load-Field Configuration}
+
+The numerical
+investigation uses a controlled simulation-based bridge-traffic dataset
+comprising 250 independent scenarios. The scenarios represent sparse, normal,
+and dense traffic conditions. Each scenario contains 121 traffic states sampled
+at 0.5 s intervals.
+
+The traffic domaincovers a 500 m roadway segment with four lanes and 50 longitudinal cells,
+giving a spatial resolution of 10 m per cell. Each traffic state is represented
+by a $4\times50\times4$ lane-space tensor
+containing vehicle occupancy, mean speed, accumulated vehicle weight, and mean
+vehicle-type code.
+
+The simulated traffic includes passenger vehicles, buses/light trucks, rigid trucks, and heavy trailer-type vehicles. Their motion follows the IDM/MOBIL-based formulation described in Section~\ref{sec:physics_guided_evolution}. The Physics-Based baseline therefore operates within the same model family as the controlled simulation environment. This benchmark should be interpreted as a model-consistent numerical evaluation rather than validation under traffic-model mismatch or field traffic. The resulting scenarios include distinct vehicle concentrations, load distributions, and lane-changing activity.
+
+For sequence-based evaluation, each sample contains 20 observed frames (10 s) followed by 30 future frames (15 s). Fig.~\ref{fig:vehicle_heterogeneity} summarizes vehicle-level heterogeneity, while Fig.~\ref{fig:traffic_regime} shows the distribution and activity characteristics of the sparse, normal, and dense traffic regimes.
+
+
+\subsection{Data Partitioning and Traffic-Estimation Configuration}
+
+To prevent information
+leakage, the 250 traffic scenarios are partitioned at the scenario level into
+175 training, 38 validation, and 37 test scenarios. All temporal windows
+generated from the same traffic realization remain within the same partition,
+preventing strongly correlated samples from appearing in both model fitting and
+evaluation.
+
+Using the 20-frame
+observation window and 30-frame estimation horizon, the final dataset contains
+3000 training windows, 600 validation windows, and 600 test windows.
+Channel-wise scaling follows the procedure defined in Section~\ref{sec:traffic_state_representation} and is kept
+unchanged across the three partitions. Before VBI analysis, the estimated
+vehicle-weight channel is converted back to its physical unit of kN.
+
+The residual correction
+model is optimized using AdamW with a hidden dimension of 96, batch size of 32,
+and a maximum of 40 training epochs. Validation-based monitoring is utilized
+for model selection, and the canonical split and evaluation use random seed 13.
+The training objective follows the formulation introduced in Section~\ref{sec:occupancy_training},
+with the selected hyperparameters fixed before evaluation on the held-out test
+set.
+
+The final dataset split
+and traffic-estimation configuration are summarized in Table~\ref{tab:dataset_configuration}.
+
+\begin{table}[!htbp]
+\centering
+\caption{Dataset, split and forecast configuration}
+\label{tab:dataset_configuration}
+\footnotesize
+\begin{tabular}{ll}
+\toprule
+\textbf{Item} & \textbf{Final configuration} \\
+\midrule
+Traffic scenarios       & 250 \\
+Frames per scenario     & 121 \\
+Traffic interval        & 0.5 s \\
+Traffic-grid length     & 500 m \\
+Lanes                   & 4 \\
+Longitudinal cells      & 50 \\
+Cell length             & 10 m \\
+Channels                & Occupancy, speed, vehicle weight, \\
+                        & and vehicle type \\
+Observation window      & 20 frames / 10 s \\
+Forecast horizon        & 30 frames / 15 s \\
+Training scenarios      & 175 \\
+Validation scenarios    & 38 \\
+Test scenarios          & 37 \\
+Training windows        & 3000 \\
+Validation windows      & 600 \\
+Test windows            & 600 \\
+Canonical split seed    & 13 \\
+Batch size              & 32 \\
+Hidden dimension        & 96 \\
+Maximum epochs          & 40 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+\subsection{VBI Numerical Model and Parameter Configuration}
+\label{sec:vbi_configuration}
+
+The structural-response
+evaluation uses the reduced-order VBI formulation introduced in Section~\ref{sec:reduced_vbi}.
+The structural span is 318~m, and the reduced model retains the first five modes. The adopted modal frequencies are 0.758, 1.533, 2.345, 3.506, and 4.022~Hz. The sine functions define the spatial modal basis, while these frequencies are treated as adopted reduced-order modal parameters. An effective bridge mass per unit length of 30,000 kg/m is
+adopted as a numerical parameter for constructing the generalized modal masses.
+
+The bridge damping
+contribution and road-surface irregularity are both set to zero in the reported
+numerical study. These terms are retained in the general formulation but are
+not activated here, allowing differences in bridge response to be attributed primarily
+to the traffic excitation and vehicle-bridge coupling.
+
+The vehicle subsystem
+is represented using lane-equivalent vertical coordinates coupled to the bridge
+modes. The adopted reduced-order equivalent vehicle parameters are 63,294~kg for mass, 1,903,172~N/m for suspension stiffness, and 7,882~N$\cdot$s/m for damping. These fixed parameters define the reduced suspension representation used in the numerical model; they are not interpreted here as instantaneous aggregates of the vehicles occupying a lane.
+
+The traffic-load field
+is available at 0.5 s intervals, whereas the VBI system is integrated using a
+structural time step of 0.02 s, giving 25 structural increments per traffic
+interval. Lane--cell loads are linearly interpolated between consecutive traffic
+states before modal projection. Time integration is performed using the Newmark
+average-acceleration scheme with $\beta=0.25$ and $\gamma=0.50$.
+
+{\color{blue}The zero-damping, 0.02~s configuration is retained as the canonical baseline. Robustness is additionally evaluated using bridge damping ratios of 1\%, 2\%, and 5\%, and structural integration steps of 0.01 and 0.005~s. These sensitivity calculations use a deterministic subset of three windows from each of the 37 held-out scenarios (111 windows in total).}
+
+Before introducing the
+estimated future traffic-load field, the common 20-frame observed traffic
+history is propagated through the same VBI system to obtain the structural
+state at the end of the observation interval. Then, this state is used as the
+common initial condition for all subsequent 30-frame response evaluations.
+
+
+\begin{figure*}[!tbp]
+\centering
+\begin{minipage}[b]{0.47\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{10.1.png}
+\end{minipage}
+\hfill
+\begin{minipage}[b]{0.47\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{10.2.png}
+\end{minipage}
+
+\caption{Traffic-regime and activity distribution of the synthetic bridge-traffic
+dataset. Panel (a) shows the number of sparse, normal, and dense scenarios,
+while panel (b) reports the mean entered vehicles and lane-change events per
+scenario for each traffic regime.}
+\label{fig:traffic_regime}
+\end{figure*}
+
+\subsection{Comparative Methods and Evaluation Metrics}
+
+All comparative methods
+are evaluated using the same observed traffic history, traffic-to-bridge
+transformation, reduced-order VBI model, modal basis, equivalent vehicle
+parameters, and Newmark-$\beta$ integration settings. Only the estimated
+traffic-load field supplied during the subsequent prediction interval is varied
+among the methods.
+
+Before evaluating the
+estimated future traffic fields, the common 20-frame observed history is
+propagated through the VBI model to establish the dynamic state at the end of
+the observation interval. Then, the same initialized state is utilized for each
+method, ensuring that differences in the reconstructed bridge responses arise
+from the estimated future traffic excitation rather than from different
+structural initial conditions.
+
+\begin{table*}[!tbp]
+\centering
+\caption{Traffic-state and traffic-load estimation performance on the held-out test set.}
+\label{tab:traffic_performance}
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Method}
+&
+\begin{tabular}[c]{@{}c@{}}\textbf{Global}\\ \textbf{RMSE}\end{tabular}
+&
+\begin{tabular}[c]{@{}c@{}}\textbf{Occupied}\\ \textbf{RMSE}\end{tabular}
+&
+\textbf{F1}
+&
+\begin{tabular}[c]{@{}c@{}}\textbf{Empty}\\ \textbf{FPR}\end{tabular}
+&
+\begin{tabular}[c]{@{}c@{}}\textbf{Load RMSE}\\ \textbf{(kN)}\end{tabular}
+&
+\begin{tabular}[c]{@{}c@{}}\textbf{Total-load RMSE}\\ \textbf{(kN)}\end{tabular}
+\\
+\midrule
+
+Persistence
+& 0.1951 & 0.4433 & 0.1451 & 0.0901 & 72.70 & 706.54 \\
+
+Physics-Based
+& \textbf{0.1310} & 0.3361 & 0.5182
+& \textbf{0.0298} & \textbf{45.23} & 917.54 \\
+
+ConvLSTM
+& 0.2683 & 0.2752 & 0.1886 & 1.0000 & 58.39 & 852.99 \\
+
+Transformer
+& 0.2186 & 0.3246 & 0.2115 & 0.7442 & 54.06 & 671.57 \\
+
+Direct Prediction
+& 0.2208 & 0.3240 & 0.2061 & 0.7843 & 53.60 & 576.99 \\
+
+Residual Correction
+& 0.1568 & \textbf{0.2306} & \textbf{0.5370}
+& 0.0334 & 45.30 & \textbf{512.02} \\
+
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+
+
+\subsubsection{Comparative Traffic-Estimation Methods}
+
+The six
+traffic-estimation strategies are evaluated.
+
+\textbf{Persistence:}
+The final observed traffic state is repeated throughout the 15 s estimation
+interval. This provides a simple baseline without explicit future
+vehicle-motion modelling.
+
+\textbf{Physics-Based:}
+The final observed vehicle configuration is propagated using the IDM-based
+longitudinal-motion model and the simplified MOBIL-like lane-change rule
+described in Section~\ref{sec:physics_guided_evolution}. The resulting vehicle states are subsequently mapped
+to the lane--space traffic-load field without any learned correction.
+
+\textbf{ConvLSTM:}
+A convolutional recurrent baseline is deployed to estimate the future traffic
+tensor directly from the observed sequence while preserving the spatial
+organization of the lane-space grid.
+
+\textbf{Transformer:}
+A data-driven attention-based sequence model is utilized to estimate the
+subsequent lane-space traffic field from the observed history without explicit
+car-following or lane-changing constraints.
+
+\textbf{Direct Prediction:}
+This model predicts the complete future traffic field directly from the
+observed sequence and does not use the Physics-Based rollout as an additive
+reference.
+
+\textbf{Residual Correction:}
+The residual model uses the Physics-Based rollout as its reference trajectory
+and estimates only the remaining spatiotemporal deviation. Thus, the learned
+correction is applied to the physically propagated traffic field rather than
+replacing it completely.
+
+For traffic-level
+evaluation, the continuous Residual Correction output is retained. Before its
+vehicle-weight channel is supplied to the VBI model, an occupancy-based support
+constraint is applied using the validation-selected threshold
+{\color{blue}$\eta_{\mathrm{occ}}=0.23$}:
+
+\begin{equation}
+\widehat{P}^{\,\mathrm{SC}}_{\tau,l,s}
+=
+\widehat{B}_{\tau,l,s}\widehat{P}_{\tau,l,s}.
+\label{eq:support_consistent_load}
+\end{equation}
+
+Here, $\widehat{B}_{\tau,l,s}$ is the predicted binary occupancy-support mask
+defined in Eq.~\eqref{eq:predicted_binary_occupancy}.
+The resulting
+structural-input case is referred to as Support-Consistent Residual Correction.
+It is not an independently trained model. It is the Residual Correction output after enforcing consistency between predicted occupancy and vehicle-load support.
+
+{\color{blue}
+\textbf{Load-Matched Raw control:}
+To separate the effect of spatial support correction from that of aggregate load reduction, a frame-wise load-matched control is constructed from the Raw Residual field. For each prediction step,
+\begin{equation}
+\alpha_{\tau}
+=
+\frac{
+\sum_{l=1}^{L}\sum_{s=1}^{S}
+\widehat{P}^{\,\mathrm{SC}}_{\tau,l,s}
+}{
+\sum_{l=1}^{L}\sum_{s=1}^{S}
+\widehat{P}^{\,\mathrm{raw}}_{\tau,l,s}
+},
+\qquad
+\widehat{P}^{\,\mathrm{LM}}_{\tau,l,s}
+=
+\alpha_{\tau}
+\widehat{P}^{\,\mathrm{raw}}_{\tau,l,s}.
+\label{eq:load_matched_control}
+\end{equation}
+Thus, the Load-Matched Raw field retains the spatial distribution of the Raw Residual prediction while matching the Support-Consistent total load at every future frame.
+
+Because multiple temporal windows originate from the same traffic scenario, uncertainty in the support-consistency comparisons is evaluated at the scenario level. Window-level errors are first averaged within each of the 37 independent test scenarios, and 95\% confidence intervals for paired mean differences are obtained using 20,000 nonparametric bootstrap resamples of the scenario clusters.
+}
+
+
+\subsubsection{Traffic-State and Traffic-Load Evaluation Metrics}
+
+Traffic-estimation
+performance is evaluated using complementary matrix-level, occupancy-based, and
+load-based metrics.
+
+\textbf{Global normalized RMSE:}
+
+For the metric definitions below, $N_c=4$ denotes the number of traffic channels. The global RMSE is computed over all prediction steps, lanes, longitudinal cells, and traffic channels:
+
+\begin{equation}
+\begin{aligned}
+\mathrm{RMSE}_{\mathrm{global}}
+&=
+\Bigg[
+\frac{1}
+{T_{\mathrm{pred}}LSN_c}
+\sum_{\tau=1}^{T_{\mathrm{pred}}}
+\sum_{l=1}^{L}
+\\
+&\qquad\qquad
+\sum_{s=1}^{S}
+\sum_{c=1}^{N_c}
+\left(
+\widehat{M}_{\tau,l,s,c}
+-
+M_{\tau,l,s,c}
+\right)^2
+\Bigg]^{1/2}.
+\end{aligned}
+\end{equation}
+
+In this matrix-level metric, $M$ and $\widehat{M}$ denote the channel-scaled traffic tensors defined by the normalization procedure above. This metric represents the overall traffic-tensor reconstruction error.
+
+\textbf{Occupied-cell RMSE:}
+
+Since the traffic field is sparse, the prediction error is also evaluated only
+over reference-occupied cells:
+
+\begin{equation}
+\mathrm{RMSE}_{\mathrm{occ}}
+=
+\sqrt{
+\frac{1}{|\Omega_{\mathrm{occ}}|}
+\sum_{(\tau,l,s,c)\in\Omega_{\mathrm{occ}}}
+\left(
+\widehat{M}_{\tau,l,s,c}
+-
+M_{\tau,l,s,c}
+\right)^2
+},
+\end{equation}
+
+where
+
+\begin{equation}
+\Omega_{\mathrm{occ}}
+=
+\left\{
+(\tau,l,s,c)
+:
+B_{\tau,l,s}=1
+\right\}.
+\end{equation}
+
+This metric emphasizes
+prediction quality in regions containing actual vehicle information.
+
+\textbf{Occupancy F1-score:}
+
+Occupancy classification performance is evaluated using
+
+\begin{equation}
+F_1
+=
+\frac{2TP}
+{2TP+FP+FN},
+\end{equation}
+
+where $TP$, $FP$, and $FN$ denote true-positive, false-positive, and false-negative occupancy classifications, respectively. These counts compare the binary reference state $B_{\tau,l,s}$ with the predicted state $\widehat{B}_{\tau,l,s}$.
+
+\textbf{Empty-cell false-positive rate:}
+
+False activations within reference-empty cells are measured using the
+empty-cell false-positive rate. This metric is particularly relevant for VBI
+analysis, since false occupancy may introduce artificial vehicle-load
+contributions.
+
+\textbf{Lane-cell traffic-load RMSE:}
+
+The vehicle-weight channel is first transformed back to its physical unit of
+kN. The lane-cell load RMSE is then evaluated directly from the reference and
+estimated vehicle-load fields:
+
+\begin{equation}
+\begin{aligned}
+\mathrm{RMSE}_{\mathrm{load}}
+&=
+\Bigg[
+\frac{1}
+{T_{\mathrm{pred}}LS}
+\sum_{\tau=1}^{T_{\mathrm{pred}}}
+\sum_{l=1}^{L}
+\\
+&\qquad\qquad
+\sum_{s=1}^{S}
+\left(
+\widehat{P}_{\tau,l,s}
+-
+P_{\tau,l,s}
+\right)^2
+\Bigg]^{1/2}.
+\end{aligned}
+\end{equation}
+
+\textbf{Total-load RMSE:}
+
+At
+each prediction step, the total bridge traffic load is evolved by summing the
+vehicle-weight field over all lanes and longitudinal cells. The corresponding
+RMSE is
+
+\begin{equation}
+\begin{aligned}
+\mathrm{RMSE}_{\mathrm{total}}
+&=
+\Bigg[
+\frac{1}{T_{\mathrm{pred}}}
+\sum_{\tau=1}^{T_{\mathrm{pred}}}
+\Bigg(
+\sum_{l=1}^{L}
+\sum_{s=1}^{S}
+\widehat{P}_{\tau,l,s}
+\\
+&\qquad\qquad
+-
+\sum_{l=1}^{L}
+\sum_{s=1}^{S}
+P_{\tau,l,s}
+\Bigg)^2
+\Bigg]^{1/2}.
+\end{aligned}
+\end{equation}
+
+Both lane-cell and
+total-load errors are reported in kN. Using both local and aggregate load
+metrics is important, since similar total traffic loads can still correspond to
+distinct spatial load distributions over the bridge.
+
+
+
+\subsubsection{Bridge-Response Evaluation Metrics}
+
+Bridge-response
+accuracy is evaluated by comparing the response generated from each estimated
+traffic-load field with the simulation-reference response generated using the
+same VBI model.
+
+The
+vertical displacement response is evaluated at the quarter-span, midspan, and
+three-quarter-span locations. For a selected bridge location $\xi$, the displacement RMSE
+is
+
+\begin{equation}
+\mathrm{RMSE}_{u}(\xi)
+=
+\sqrt{
+\frac{1}{N_t}
+\sum_{n=1}^{N_t}
+\left[
+\widehat{u}(\xi,t_n)
+-
+u^{\mathrm{ref}}(\xi,t_n)
+\right]^2
+}.
+\end{equation}
+
+Agreement
+of the displacement histories is additionally quantified using the coefficient
+of determination,
+
+\begin{equation}
+R_u^2(\xi)
+=
+1-
+\frac{
+\displaystyle
+\sum_{n=1}^{N_t}
+\left[
+u^{\mathrm{ref}}(\xi,t_n)
+-
+\widehat{u}(\xi,t_n)
+\right]^2
+}{
+\displaystyle
+\sum_{n=1}^{N_t}
+\left[
+u^{\mathrm{ref}}(\xi,t_n)
+-
+\overline{u}^{\,\mathrm{ref}}(\xi)
+\right]^2
+}.
+\end{equation}
+
+The
+bridge acceleration response is evaluated at midspan. Its RMSE is
+
+\begin{equation}
+\begin{aligned}
+\mathrm{RMSE}_{a}
+&=
+\Bigg[
+\frac{1}{N_t}
+\sum_{n=1}^{N_t}
+\Bigg(
+\widehat{\ddot{u}}
+\left(
+\frac{L_b}{2},t_n
+\right)
+\\
+&\qquad\qquad
+-
+\ddot{u}^{\mathrm{ref}}
+\left(
+\frac{L_b}{2},t_n
+\right)
+\Bigg)^2
+\Bigg]^{1/2}.
+\end{aligned}
+\end{equation}
+
+and
+the corresponding $R^2$ value is calculated in
+the same manner as for displacement.
+
+To
+assess peak structural demand, the absolute peak midspan displacement is
+computed for each test sequence, and the corresponding mean absolute error is
+reported as
+
+\begin{equation}
+\begin{aligned}
+\mathrm{MAE}_{\mathrm{peak}}
+&=
+\frac{1}{N_{\mathrm{test}}}
+\sum_{j=1}^{N_{\mathrm{test}}}
+\Bigg|
+\max_{n}
+\left|
+\widehat{u}_{j}
+\left(
+\frac{L_b}{2},t_n
+\right)
+\right|
+\\
+&\qquad
+-
+\max_{n}
+\left|
+u_{j}^{\mathrm{ref}}
+\left(
+\frac{L_b}{2},t_n
+\right)
+\right|
+\Bigg|.
+\end{aligned}
+\end{equation}
+
+Displacement
+errors are reported in mm, acceleration errors in m/s$^2$, and load-related errors
+in kN.
+
+
+
+
+\subsection{Numerical Verification and Computational Configuration}
+
+To
+ensure a consistent numerical comparison, the same VBI solver, bridge and
+vehicle parameters, modal basis, structural time step, and Newmark-$\beta$
+settings are utilized for all evaluated
+traffic-load inputs. The traffic interval of 0.5 s is resolved using a
+structural integration step of 0.02 s, giving 25 structural increments within
+each traffic interval.
+
+The
+simulation-reference bridge response is acquired by supplying the reference
+traffic-load field to the same VBI formulation utilized for all estimated
+traffic cases. In addition, each method starts from the same dynamic state
+obtained from the observed traffic history. Therefore, differences in the
+calculated bridge responses arise from the estimated future traffic-load fields
+rather than from changes in numerical settings or initial conditions.
+
+
+
+\section{Results and Discussion}
+
+\subsection{Traffic-State and Traffic-Load Estimation Performance}
+\label{sec:traffic_results}
+
+Table~\ref{tab:traffic_performance} summarizes the
+traffic-estimation performance over the 600 held-out test windows. The
+Physics-Based method achieves the lowest global RMSE of 0.1310, the lowest
+empty-cell false-positive rate of 0.0298, and the lowest vehicle-weight RMSE of
+45.23 kN. In contrast, Residual Correction gives the lowest occupied-cell RMSE
+of 0.2306 and the highest occupancy F1-score of 0.5370. These results indicate
+that the physics-based evolution provides stronger overall spatial consistency,
+whereas the residual correction improves the representation of traffic states
+within occupied regions.
+
+A different ranking is
+observed for aggregate traffic loading. Residual Correction achieves the lowest
+total-load RMSE of 512.02 kN, compared with 706.54 kN for Persistence, 917.54
+kN for the Physics-Based method, 852.99 kN for ConvLSTM, 671.57 kN for the
+Transformer, and 576.99 kN for Direct Prediction. This shows that the method
+providing the best global matrix reconstruction does not necessarily provide
+the most accurate total traffic-load estimate.
+
+The data-driven baselines
+also show differences between local and aggregate performance. ConvLSTM
+produces a relatively low occupied-cell RMSE, however a high empty-cell
+false-positive rate, while the Transformer and Direct Prediction provide
+comparatively low total-load errors despite less consistent occupancy support.
+These differences are important for VBI analysis, since the bridge response
+depends not only on the total vehicle load but also on its spatial distribution
+over the span.
+
+Fig.~\ref{fig:predicted_total_load} shows the total-load evolution, Fig.~\ref{fig:horizon_load_rmse} shows the horizon-wise error, Fig.~\ref{fig:traffic_metric_comparison} compares the traffic metrics, and Fig.~\ref{fig:spatiotemporal_load_fields} shows the spatiotemporal traffic-load distribution. Together, these
+results demonstrate that traffic-estimation methods can be ranked differently
+depending on whether local traffic states, occupancy support, or aggregate
+loading are considered. Therefore, the effect of these differences on the
+resulting bridge dynamic response is examined in the following section.
+
+
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=\columnwidth]{11.png}
+\caption{Predicted total traffic load over the forecast horizon for a representative held-out traffic sequence.}
+\label{fig:predicted_total_load}
+\end{figure}
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=\columnwidth]{12.png}
+\caption{Horizon-wise total traffic-load RMSE for the evaluated forecasting methods.}
+\label{fig:horizon_load_rmse}
+\end{figure}
+
+\begin{figure*}[!tbp]
+\centering
+
+\begin{minipage}[t]{0.46\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{13.1.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.46\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{13.2.png}
+\end{minipage}
+
+\vspace{3mm}
+\begin{minipage}[t]{0.46\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{13.3.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.46\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{13.4.png}
+\end{minipage}
+
+\caption{
+\textbf{(a)} Global RMSE
+\textbf{(b)} Occupied-cell RMSE
+\textbf{(c)} Occupancy F1
+\textbf{(d)} Total-load RMSE.}
+\label{fig:traffic_metric_comparison}
+\end{figure*}
+
+\begin{figure*}[!tbp]
+\centering
+
+\begin{minipage}[t]{0.46\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{14.1.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.46\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{14.2.png}
+\end{minipage}
+
+\vspace{3mm}
+
+\begin{minipage}[t]{0.46\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{14.3.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.46\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{14.4.png}
+\end{minipage}
+
+\caption{Spatiotemporal lane-summed traffic-load fields for a common held-out traffic
+sequence: \textbf{(a)} simulation ground truth,
+\textbf{(b)} physics-based traffic evolution,
+\textbf{(c)} raw residual correction, and
+\textbf{(d)} support-consistent residual correction.}
+\label{fig:spatiotemporal_load_fields}
+\end{figure*}
+
+
+
+
+
+
+
+
+\subsection{Bridge Dynamic Response under Estimated Traffic Loads}
+\label{sec:bridge_response_results}
+
+The estimated
+traffic-load fields are next evaluated through the common VBI model using
+identical structural parameters, numerical settings, and observed-history
+initialization. Table~\ref{tab:bridge_response_performance} summarizes the six primary structural-input cases for which the complete metric set is reported, while Fig.~\ref{fig:bridge_response_metrics} provides the corresponding multi-metric comparison. The Raw Residual case is retained separately as a diagnostic for the occupancy-load support analysis. The Physics-Based method provides the strongest overall bridge-response
+agreement, with a midspan displacement RMSE of 3.427 mm, a three-quarter-span
+RMSE of 1.856 mm, an acceleration RMSE of 0.0269 m/s$^2$, and a peak-displacement
+MAE of 2.525 mm. Its displacement and acceleration $R^2$ values are 0.765 and
+0.412, respectively.
+
+\begin{table*}[!tbp]
+\centering
+\caption{Bridge-response performance obtained from the evaluated traffic-load inputs.}
+\label{tab:bridge_response_performance}
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{Traffic input}
+& \begin{tabular}[c]{@{}c@{}}$L_b/4$ \textbf{RMSE}\\ \textbf{(mm)}\end{tabular}
+& \begin{tabular}[c]{@{}c@{}}$L_b/2$ \textbf{RMSE}\\ \textbf{(mm)}\end{tabular}
+& \begin{tabular}[c]{@{}c@{}}$3L_b/4$ \textbf{RMSE}\\ \textbf{(mm)}\end{tabular}
+& \begin{tabular}[c]{@{}c@{}}\textbf{Acc. RMSE}\\ \textbf{(m/s$^2$)}\end{tabular}
+& \begin{tabular}[c]{@{}c@{}}\textbf{Peak MAE}\\ \textbf{(mm)}\end{tabular}
+& \begin{tabular}[c]{@{}c@{}}\textbf{Disp.}\\ $\mathbf{R^2}$\end{tabular}
+& \begin{tabular}[c]{@{}c@{}}\textbf{Acc.}\\ $\mathbf{R^2}$\end{tabular}
+\\
+\midrule
+Persistence
+& \textbf{3.190} & 4.392 & 3.416 & 0.0281 & 4.416 & 0.571 & 0.364 \\
+Physics-Based
+& 3.894 & \textbf{3.427} & \textbf{1.856} & \textbf{0.0269} & \textbf{2.525} & \textbf{0.765} & \textbf{0.412} \\
+ConvLSTM
+& 5.391 & 7.236 & 5.238 & 0.1006 & 6.423 & -0.825 & -15.517 \\
+Transformer
+& 4.061 & 5.160 & 3.790 & 0.0792 & 3.517 & 0.523 & -1.838 \\
+Direct Prediction
+& 4.011 & 5.136 & 3.675 & 0.0869 & 4.002 & 0.517 & -2.545 \\
+Support-Consistent Residual
+& 4.062 & 3.727 & 2.101 & 0.0321 & 2.530 & 0.730 & 0.350 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+\begin{figure*}[!tbp]
+\centering
+
+% ---------- First row ----------
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{16.1.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{16.2.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{16.3.png}
+\end{minipage}
+
+\vspace{3mm}
+
+% ---------- Second row: centered ----------
+\makebox[\textwidth][c]{%
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{16.4.png}
+    \end{minipage}
+    \hspace{0.02\textwidth}
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{16.5.png}
+    \end{minipage}
+}
+
+\caption{Multi-metric comparison of the simulated bridge-response errors obtained
+from the evaluated traffic-load inputs:
+\textbf{(a)} displacement RMSE at $L_b/4$, $L_b/2$, and $3L_b/4$;
+\textbf{(b)} midspan acceleration RMSE;
+\textbf{(c)} peak-displacement MAE;
+\textbf{(d)} displacement $R^2$; and
+\textbf{(e)} acceleration $R^2$.}
+\label{fig:bridge_response_metrics}
+\end{figure*}
+
+
+
+The response accuracy
+varies along the bridge span. Persistence gives the lowest quarter-span
+displacement RMSE of 3.190 mm, whereas the Physics-Based method performs better
+at the midspan and three-quarter-span locations. The Support-Consistent
+Residual method also provides good structural agreement, with displacement RMSE
+values of 4.062, 3.727, and 2.101 mm at $L_b/4$, $L_b/2$, and $3L_b/4$, respectively. Its
+acceleration RMSE is 0.0321 m/s$^2$ and its peak-displacement MAE is 2.530 mm.
+
+In contrast, the purely
+data-driven methods produce larger structural errors, particularly in
+acceleration. ConvLSTM gives a midspan displacement RMSE of 7.236 mm and an
+acceleration RMSE of 0.1006 m/s$^2$, while the Transformer and Direct Prediction
+methods give acceleration RMSE values of 0.0792 and 0.0869 m/s$^2$, respectively.
+These results show that favorable traffic-estimation performance does not necessarily lead to equally accurate bridge-response estimation. The across-scenario structural-error distributions are shown in Fig.~\ref{fig:bridge_error_distribution}.
+
+Representative displacement and acceleration histories are shown in Fig.~\ref{fig:representative_bridge_response}, while Fig.~\ref{fig:bridge_response_metrics} summarizes the overall structural comparison. The difference between
+traffic-load accuracy and bridge-response fidelity is examined further in
+Section~\ref{sec:load_response_fidelity}.
+
+\begin{figure*}[!tbp]
+\centering
+
+\begin{minipage}[t]{0.47\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{15.1.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.47\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{15.2.png}
+\end{minipage}
+
+\caption{Representative displacement and acceleration history.}
+\label{fig:representative_bridge_response}
+\end{figure*}
+
+
+
+\begin{figure*}[!tbp]
+\centering
+
+% ---------- First row ----------
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{18.1.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{18.2.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{18.3.png}
+\end{minipage}
+
+\vspace{3mm}
+
+% ---------- Second row: centered ----------
+\makebox[\textwidth][c]{%
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{18.4.png}
+    \end{minipage}
+    \hspace{0.02\textwidth}
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{18.5.png}
+    \end{minipage}
+}
+
+\caption{Variation of bridge-response errors across scenarios
+\textbf{(a)} $L_b/4$ displacement error distribution;
+\textbf{(b)} $L_b/2$ displacement error distribution;
+\textbf{(c)} $3L_b/4$ displacement error distribution;
+\textbf{(d)} midspan acceleration error distribution;
+\textbf{(e)} peak-midspan-displacement error distribution.}
+\label{fig:bridge_error_distribution}
+\end{figure*}
+
+
+
+
+
+\subsection{Traffic-Load Estimation versus Bridge-Response Fidelity}
+\label{sec:load_response_fidelity}
+
+The results in Sections~\ref{sec:traffic_results} and~\ref{sec:bridge_response_results} show that lower traffic-load estimation error does not necessarily
+lead to more accurate bridge-response prediction. Residual Correction achieves
+the lowest total-load RMSE of 512.02 kN, whereas the Physics-Based method gives
+a substantially larger value of 917.54 kN. However, when the corresponding
+unmodified traffic fields are introduced into the VBI model, the Physics-Based
+method produces lower midspan displacement and acceleration RMSE values of
+3.427 mm and 0.0269 m/s$^2$, compared with 4.219 mm and 0.0552 m/s$^2$ for the raw
+residual estimate.
+
+This difference arises since
+the structural response depends not only on the total vehicle load but also on
+its spatial and temporal distribution over the bridge. Hence, two traffic
+estimates with similar or improved aggregate loading can produce different
+bridge responses when the vehicle loads are positioned distinctly along the
+span.
+
+{\color{blue}Vehicle-level trajectory analysis further shows that, on average, 29.3\% of the vehicle weight occurring during the future prediction interval is associated with vehicles that are absent at the final observed traffic state. This future-arrival weight fraction is positively associated with the Physics-Based total-load RMSE (Pearson $r=0.471$; Spearman $\rho=0.559$). Since these vehicles are unavailable when the deterministic rollout is initialized, this association is consistent with unobserved future arrivals being an important source of Physics-Based forecast mismatch. The median RMSE between trajectory-derived and matrix-derived reference total load is only 0.168~kN, indicating close consistency between the two reference representations.}
+
+These results demonstrate that traffic-load accuracy and bridge-response fidelity should be evaluated separately. Fig.~\ref{fig:traffic_bridge_error_relationship} shows the corresponding relationships between traffic-load errors and structural-response errors. The influence of occupancy-load support consistency on this
+relationship is examined in the following section.
+
+\begin{figure*}[!tbp]
+\centering
+
+% ---------- First row ----------
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{19.1.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{19.2.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{19.3.png}
+\end{minipage}
+
+\vspace{3mm}
+
+% ---------- Second row: centered ----------
+\makebox[\textwidth][c]{%
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{19.4.png}
+    \end{minipage}
+    \hspace{0.02\textwidth}
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{19.5.png}
+    \end{minipage}
+}
+
+\caption{Relationship between traffic-load and bridge-response errors
+\textbf{(a)} Total-load error versus midspan displacement error;
+\textbf{(b)} total-load error versus acceleration error;
+\textbf{(c)} lane-cell load error versus displacement error;
+\textbf{(d)} lane-cell load error versus acceleration error;
+\textbf{(e)} total-load error versus peak-displacement error.}
+\label{fig:traffic_bridge_error_relationship}
+\end{figure*}
+
+
+
+
+\subsection{Effect of Occupancy-Load Support Consistency}
+\label{sec:support_consistency_results}
+
+The raw residual estimate
+may assign non-zero vehicle loads to cells predicted as unoccupied. To reduce this inconsistency, the vehicle-load field is masked using the occupancy
+threshold selected from the validation data before it is supplied to the VBI model.
+This produces the Support-Consistent Residual input without retraining the
+forecasting model.
+
+Applying this constraint substantially reduces the extreme structural response, as shown in Fig.~\ref{fig:support_consistency_effect}. The maximum midspan displacement decreases from 191.12 to 40.61 mm, while the maximum midspan acceleration decreases from 5.281 to 0.605 m/s$^2$. These maximum amplitudes describe extreme predicted responses and are distinct from the sequence-averaged RMSE and MAE values reported in Table~\ref{tab:bridge_response_performance}. These results indicate that
+maintaining consistency between predicted occupancy and vehicle-load location
+is important when estimated traffic fields are utilized for bridge dynamic
+analysis.
+
+{\color{blue}
+To verify that this improvement is not explained only by the reduction in aggregate predicted load, the Load-Matched Raw control in Eq.~\eqref{eq:load_matched_control} was evaluated over all 600 test windows. The maximum frame-wise difference between its total load and the Support-Consistent total load was $9.1\times10^{-13}$~kN, and no frame required an undefined zero-load rescaling. Table~\ref{tab:load_matched_control} summarizes the resulting response errors.
+
+\begin{table}[!htbp]
+\centering
+\caption{Load-matched support-consistency control over the 600 held-out test windows.}
+\label{tab:load_matched_control}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Traffic input}
+& \begin{tabular}[c]{@{}c@{}}\textbf{Midspan disp.}\\\textbf{RMSE (mm)}\end{tabular}
+& \begin{tabular}[c]{@{}c@{}}\textbf{Midspan acc.}\\\textbf{RMSE (m/s$^2$)}\end{tabular}
+& \begin{tabular}[c]{@{}c@{}}\textbf{Peak-midspan}\\\textbf{error (mm)}\end{tabular}
+\\
+\midrule
+Raw Residual & 4.219 & 0.0552 & 5.002 \\
+Load-Matched Raw & 4.395 & 0.0439 & 3.760 \\
+Support-Consistent Residual & 3.727 & 0.0321 & 2.955 \\
+Physics-Based & 3.427 & 0.0269 & 2.966 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At the scenario level, Support-Consistent Residual improves over Load-Matched Raw by 0.654~mm in midspan displacement RMSE (95\% CI: 0.412--1.043~mm), 0.0114~m/s$^2$ in acceleration RMSE (95\% CI: 0.0053--0.0216~m/s$^2$), and 0.754~mm in peak-midspan displacement error (95\% CI: 0.280--1.535~mm). Improvements occur in 35/37, 33/37, and 30/37 scenarios, respectively. Hence, the structural benefit of occupancy-load support consistency cannot be attributed solely to a reduction in total predicted load; the spatial support of the predicted loading has an independent effect on the reconstructed bridge response. For the direct Raw Residual versus Support-Consistent comparison, the scenario-level confidence interval for midspan displacement RMSE includes zero, whereas those for acceleration and peak-midspan displacement error remain positive; the displacement benefit should therefore be interpreted as more scenario dependent.
+}
+
+\begin{figure*}[!tbp]
+\centering
+
+% ---------- First row ----------
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{20.1.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{20.2.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{20.3.png}
+\end{minipage}
+
+\vspace{3mm}
+
+% ---------- Second row: centered ----------
+\makebox[\textwidth][c]{%
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{20.4.png}
+    \end{minipage}
+    \hspace{0.02\textwidth}
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{20.5.png}
+    \end{minipage}
+}
+
+\caption{Effect of occupancy-load support enforcement
+\textbf{(a)} Removed predicted load versus horizon;
+\textbf{(b)} raw versus support-consistent displacement error;
+\textbf{(c)} raw versus support-consistent acceleration error;
+\textbf{(d)} raw versus support-consistent peak-displacement error;
+\textbf{(e)} distribution of absolute peak midspan acceleration.}
+\label{fig:support_consistency_effect}
+\end{figure*}
+
+
+
+
+{\color{blue}
+\subsection{Robustness to Structural Damping and Integration Time Step}
+The damping and integration-step sensitivity study was performed on the deterministic 111-window subset described above. Across bridge damping ratios of 0\%, 1\%, 2\%, and 5\%, the ordering of the three residual variants remains unchanged for both midspan displacement and acceleration RMSE: Support-Consistent Residual gives the lowest error, followed by Raw Residual and then Load-Matched Raw. For Support-Consistent Residual, the midspan displacement RMSE changes from 4.009~mm at zero damping to 3.913, 3.846, and 3.727~mm at 1\%, 2\%, and 5\% damping, respectively. Reducing the structural integration step from 0.02 to 0.01 and 0.005~s changes the corresponding displacement RMSE only from 4.0087 to 4.0090 and 4.0081~mm, while the acceleration RMSE remains approximately 0.0389~m/s$^2$. These results indicate that the comparative conclusions are not sensitive to the baseline zero-damping assumption and that the adopted 0.02~s structural integration step is sufficiently converged for the present response comparisons.
+}
+
+\section{Conclusion}
+
+This manuscript introduces a physics-guided traffic-bridge interaction framework that interconnects the spatiotemporal evolution of estimated traffic loads with VBI dynamic response analysis. The framework integrates physics-based traffic propagation, residual spatiotemporal correction, occupancy-load support enforcement, and multirate traffic-to-bridge load transfer within a reduced-order VBI formulation. The proposed approach investigates how inconsistencies in the estimated traffic-load field propagate into the predicted dynamic response of the bridge.
+
+Evaluation on 600 test windows from 37 unseen simulated traffic scenarios highlights that distinct traffic-estimation and bridge-response metrics lead to different method rankings. The physics-based approach presents the strongest overall bridge-response agreement, whereas Residual Correction achieves the lowest total-load RMSE and the best occupied-cell RMSE and occupancy F1-score. These results demonstrate that enhanced/improved traffic-state estimation does not necessarily ensure more accurate bridge-response prediction. Furthermore, enforcing occupancy-load support consistency reduces the maximum predicted midspan displacement from 191.12 to 40.61 mm and the maximum predicted midspan acceleration from 5.281 to 0.605 m/s$^2$. This highlights the significance of maintaining consistency between predicted vehicle occupancy and the spatial support of the corresponding traffic loads. {\color{blue}The load-matched control further confirms that this benefit is not solely a consequence of reducing aggregate predicted load: Support-Consistent Residual remains better than the frame-wise load-matched Raw Residual control for midspan displacement, acceleration, and peak-midspan displacement error across most held-out scenarios.}
+
+These findings highlight that reliable VBI response prediction depends not only on aggregate traffic-load estimation accuracy but also on the spatiotemporal distribution of the estimated loading and its consistency with evolving vehicle occupancy. The present investigation is based on a controlled simulation dataset and a reduced-order structural model, with the traffic generator and Physics-Based rollout employing the same IDM/MOBIL model family. {\color{blue}Future work should therefore investigate traffic-model mismatch, explicit future-arrival modelling, more detailed bridge and vehicle models, road-surface effects, traffic-sampling-resolution sensitivity, and field-based traffic and bridge-response data to further evaluate the proposed framework under more realistic operating conditions.}
+
+\section*{Declaration of Competing Interest}
+
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+
+\section*{Data Availability}
+
+Data will be made available on request.
+
+% Final safeguard: flush every remaining float before the bibliography.
+\FloatBarrier
+
+\bibliographystyle{IEEEtran}
+\bibliography{Ref}
+
+
+\end{document}
