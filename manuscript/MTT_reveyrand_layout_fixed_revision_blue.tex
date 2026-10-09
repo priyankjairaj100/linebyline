@@ -730,6 +730,8 @@ M_{\tau,l,s,c}^{\mathrm{phy}}
 \right)^2.
 \end{equation}
 
+{\color{blue}In the canonical implementation, both matrix-MSE terms are additionally weighted by channel weights $(4,1,2,1)$. The data term uses an occupied-cell multiplier $1+8B_{\tau,l,s}$, while the Physics-Based consistency term uses the corresponding multiplier $1+B_{\tau,l,s}^{\mathrm{phy}}$.}
+
 As occupied cells form a smaller fraction of the traffic tensor, occupancy classification is additionally constrained using a weighted binary cross-entropy term, where $N$ denotes the number of time--lane--cell occupancy entries included in the corresponding loss sum.
 
 \begin{equation}
