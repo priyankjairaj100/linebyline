@@ -132,7 +132,7 @@ def run_load_matched(mod,C,scales,weight_idx,cfg,saved,manifest,out):
                 print(f"load-matched {i+1}/{n} elapsed={time.time()-t0:.1f}s")
         md=np.asarray(D); ma=np.asarray(A)
         np.savez_compressed(cache,disp_high_m=md,acc_high_mps2=ma,impossible_frames=np.array([impossible]))
-    ids=np.asarray(C.get("abs_ids",np.arange(n)))
+    ids=np.asarray(C["abs_ids"] if "abs_ids" in C.files else np.arange(n))
     scen=manifest.scenario_id.astype(str).to_numpy()
     gt_d=saved["ground_truth_disp_high_m"]; gt_a=saved["ground_truth_acc_high_mps2"]
     variants={
@@ -276,7 +276,7 @@ def run_forecast_mismatch(C,scales,weight_idx,manifest,root,out):
         if chunk.empty: continue
         for (sid,t),g in chunk.groupby(["scenario_id","time_idx"],sort=False):
             pos=g["position_m"].to_numpy(float) if "position_m" in g else np.full(len(g),np.nan)
-            records[(str(sid),int(t))]=list(zip(g.vehicle_id.astype(str),g.gross_vehicle_weight_kN.astype(float),pos))
+            records.setdefault((str(sid),int(t)),[]).extend(list(zip(g.vehicle_id.astype(str),g.gross_vehicle_weight_kN.astype(float),pos)))
     rows=[]
     Tobs=C["X_test"].shape[1]; Tpred=C["Y_test"].shape[1]
     for i,row in manifest.iterrows():
