@@ -1,6 +1,7 @@
 param(
     [string]$Root = "$env:USERPROFILE\Downloads\btpit_stage4_update_bundle",
-    [string]$Package = "$env:USERPROFILE\Downloads\BT_PIT_NEXT_AUDIT.zip"
+    [string]$Package = "$env:USERPROFILE\Downloads\BT_PIT_NEXT_AUDIT.zip",
+    [string]$TextOutput = "$env:USERPROFILE\Downloads\BT_PIT_NEXT_AUDIT.txt"
 )
 $ErrorActionPreference = "Stop"
 if (-not (Test-Path -LiteralPath $Root -PathType Container)) {
@@ -16,9 +17,9 @@ try {
     $analyze = Join-Path $working "analyze_support_scenarios.py"
     $inspect = Join-Path $working "inspect_canonical_npz.py"
     $finder = Join-Path $working "find_canonical_v3_source.ps1"
-    Invoke-WebRequest -Uri "$base/analyze_support_scenarios.py" -OutFile $analyze
-    Invoke-WebRequest -Uri "$base/inspect_canonical_npz.py" -OutFile $inspect
-    Invoke-WebRequest -Uri "$base/find_canonical_v3_source.ps1" -OutFile $finder
+    Invoke-WebRequest -Uri "$base/analyze_support_scenarios.py" -OutFile $analyze -UseBasicParsing
+    Invoke-WebRequest -Uri "$base/inspect_canonical_npz.py" -OutFile $inspect -UseBasicParsing
+    Invoke-WebRequest -Uri "$base/find_canonical_v3_source.ps1" -OutFile $finder -UseBasicParsing
 
     Write-Host "Analyzing saved 37-scenario support-consistency pairs..."
     & py $analyze --root $Root --out_dir (Join-Path $working "scenario_uncertainty")
@@ -51,6 +52,31 @@ or independently reconstructed/validated before those comparisons.
 "@
     $readme | Set-Content (Join-Path $working "README.txt") -Encoding UTF8
 
+
+    # Plain-text export is the PRIMARY artifact for ChatGPT upload.
+    # It avoids asking ChatGPT to open a ZIP or large binary arrays.
+    $reportSegments = @(
+        @{Name="README.txt"; Path=(Join-Path $working "README.txt")},
+        @{Name="scenario_cluster_bootstrap.csv"; Path=(Join-Path $working "scenario_uncertainty\scenario_cluster_bootstrap.csv")},
+        @{Name="scenario_leave_one_out.csv"; Path=(Join-Path $working "scenario_uncertainty\scenario_leave_one_out.csv")},
+        @{Name="CANONICAL_NPZ_SCHEMA.json"; Path=(Join-Path $working "CANONICAL_NPZ_SCHEMA.json")},
+        @{Name="BT_PIT_V3_SOURCE_SEARCH.txt"; Path=(Join-Path $working "BT_PIT_V3_SOURCE_SEARCH.txt")}
+    )
+    $reportText = [System.Collections.Generic.List[string]]::new()
+    $reportText.Add("BT-PIT canonical next audit: TEXT EXPORT")
+    $reportText.Add("Created: $(Get-Date -Format o)")
+    $reportText.Add("")
+    foreach ($segment in $reportSegments) {
+        $reportText.Add("===== BEGIN FILE: $($segment.Name) =====")
+        $reportText.Add((Get-Content -LiteralPath $segment.Path -Raw))
+        $reportText.Add("===== END FILE: $($segment.Name) =====")
+        $reportText.Add("")
+    }
+    [System.IO.File]::WriteAllText($TextOutput, ($reportText -join [Environment]::NewLine), [System.Text.UTF8Encoding]::new($false))
+    Write-Host ""
+    Write-Host "PRIMARY OUTPUT: upload this TEXT file to ChatGPT:"
+    Write-Host $TextOutput
+
     # Only output reports, not scripts or original numerical data.
     $out = Join-Path $env:TEMP ("btpit_output_" + [guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $out -Force | Out-Null
@@ -65,7 +91,7 @@ or independently reconstructed/validated before those comparisons.
         Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue
     }
     Write-Host ""
-    Write-Host "SUCCESS. Upload this ZIP to ChatGPT:"
+    Write-Host "SUCCESS. ZIP backup is also available:"
     Write-Host $Package
     Get-Item -LiteralPath $Package | Select-Object Name, @{Name="SizeMB";Expression={[math]::Round($_.Length / 1MB, 3)}} | Format-Table
 }
